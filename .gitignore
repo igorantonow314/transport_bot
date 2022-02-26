@@ -1,5 +1,6 @@
-comments.txt
-
+*.ipynb
 __pycache__
+
 feed
 feed/*
+bot_conf.ini
