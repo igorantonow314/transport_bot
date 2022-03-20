@@ -3,4 +3,4 @@ __pycache__
 
 feed
 feed/*
-bot_conf.ini
+bot_conf.py

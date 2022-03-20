@@ -1,12 +1,17 @@
 import requests
 import json
 
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext.updater import Updater
+from telegram.update import Update
+from telegram.ext.callbackcontext import CallbackContext
+from telegram.ext.commandhandler import CommandHandler
+from telegram.ext.messagehandler import MessageHandler
+from telegram.ext.filters import Filters
+from database import get_route, get_stop, get_random_stop_id, get_nearest_stops
 
-from helper import get_route, get_stop, get_random_stop_id
+from bot_conf import BOT_TOKEN
 
-BOT_TOKEN = 'blablabla' # please replace by yours
+# BOT_TOKEN = 'blablabla' # please replace by yours
 
 updater = Updater(token=BOT_TOKEN, use_context=True)
 
@@ -63,6 +68,16 @@ def random_stop(update: Update, context: CallbackContext):
 
 random_stop_handler = CommandHandler('random_stop', random_stop)
 dispatcher.add_handler(random_stop_handler)
+
+
+
+def nearest_stops(update: Update, context: CallbackContext):
+    stops = get_nearest_stops(update.message.location.latitude,
+                              update.message.location.longitude)
+    msg = '\n'.join([str(i) + ": " + get_stop(i).stop_name for i in stops])
+    update.message.reply_text(msg)
+
+updater.dispatcher.add_handler(MessageHandler(Filters.location, nearest_stops))
 
 
 updater.start_polling()
