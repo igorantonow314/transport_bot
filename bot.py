@@ -19,6 +19,12 @@ dispatcher = updater.dispatcher
 
 
 def get_forecast_by_stop(stopID):
+    '''
+    Requests arrival time forecast for a particular stop.
+
+    See also forecast_json_to_text() for human-readable result.
+    Data from site: transport.orgp.spb.ru
+    '''
     data_url = "https://transport.orgp.spb.ru/\
 Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
     d = requests.get(data_url)
@@ -29,6 +35,9 @@ Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
 
 
 def forecast_json_to_text(forecast_json):
+    '''
+    Converts result of get_forecast_by_stop into human-readable form.
+    '''
     assert forecast_json['success']
     msg = ''
     for p in forecast_json['result']:
@@ -44,6 +53,10 @@ def forecast_json_to_text(forecast_json):
 
 
 def stop_info(stop_id):
+    '''
+    :result: human-readable arrival time forecast for the stop
+    in markdown format
+    '''
     forecast_json = get_forecast_by_stop(stop_id)
     msg = '*Остановка: ' + get_stop(stop_id).stop_name + '*\n'
     msg += forecast_json_to_text(forecast_json)
@@ -51,6 +64,9 @@ def stop_info(stop_id):
 
 
 def nevskii(update: Update, context: CallbackContext):
+    '''
+    Forecast for Nevskii prospect stop
+    '''
     msg = stop_info(15495)
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg,
                              parse_mode='markdown')
@@ -70,14 +86,15 @@ random_stop_handler = CommandHandler('random_stop', random_stop)
 dispatcher.add_handler(random_stop_handler)
 
 
-
 def nearest_stops(update: Update, context: CallbackContext):
     stops = get_nearest_stops(update.message.location.latitude,
                               update.message.location.longitude)
     msg = '\n'.join([str(i) + ": " + get_stop(i).stop_name for i in stops])
     update.message.reply_text(msg)
 
+
 updater.dispatcher.add_handler(MessageHandler(Filters.location, nearest_stops))
 
 
-updater.start_polling()
+if __name__ == '__main__':
+    updater.start_polling()
