@@ -12,6 +12,8 @@ from database import get_route, get_stop, get_random_stop_id, get_nearest_stops
 from bot_conf import BOT_TOKEN
 
 # BOT_TOKEN = 'blablabla' # please replace by yours
+TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
+                        'tram': '🚊', 'ship':'🚢'}
 
 
 def get_forecast_by_stop(stopID):
@@ -44,7 +46,7 @@ def forecast_json_to_text(forecast_json):
                        'tram': 'трамвай', 'ship': 'аквабус'}
         msg += (TRANSLATION[route.transport_type] + ' № '
                 + route.route_short_name
-                + ' прибудет в ' + p['arrivingTime'].split()[1]
+                + ' прибудет в ' + p['arrivingTime'].split()[1][:-3]
                 + '\n')
     return msg
 
@@ -55,8 +57,12 @@ def stop_info(stop_id):
     in markdown format
     '''
     forecast_json = get_forecast_by_stop(stop_id)
-    msg = '*Остановка: ' + get_stop(stop_id).stop_name + '*\n'
+    stop = get_stop(stop_id)
+    msg = '*Остановка: ' + stop.stop_name
+    msg += TRANSPORT_TYPE_EMOJI[stop.transport_type] + '*\n'
     msg += forecast_json_to_text(forecast_json)
+    if len(forecast_json_to_text(forecast_json)) == 0:
+        msg += '_не найдено ни одного автобуса, посмотрите другие остановки._\n'
     msg += 'Обновить: /stop\\_' + str(stop_id)
     return msg
 
@@ -84,17 +90,49 @@ def random_stop(update: Update, context: CallbackContext):
 def nearest_stops(update: Update, context: CallbackContext):
     stops = get_nearest_stops(update.message.location.latitude,
                               update.message.location.longitude, n=10)
-    msg = '\n'.join(['/stop\\_'+str(i) + ": " + get_stop(i).stop_name for i in stops])
+    msg = '*Ближайшие остановки:*\n'
+    for i in stops:
+        msg += ( ('/stop\\_'+str(i) + ": " ).ljust(13)
+                      + TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
+                      + get_stop(i).stop_name 
+                )
+        msg += '\n'
     update.message.reply_text(msg, parse_mode='markdown')
 
 
+def start_message(update: Update, context: CallbackContext):
+    msg = '''Привет!
+Это альфа версия бота. Чтобы посмотреть расписание транспорта на ближайшей остановке, \
+пришли мне своё местоположение (или не своё). Также можно посмотреть расписание для случайной остановки: \
+/random\\_stop
 
-if __name__ == '__main__':
-    updater = Updater(token=BOT_TOKEN, use_context=True)
+**Все команды:**
+/nevskii -- расписание транспорта на остановке "Невский проспект"
+/random\\_stop -- расписание транспорта на случайной остановке
+/stop\\_15495 -- расписание транспорта на остановке с соответствующим id
 
+**Контакты:**
+@igoranonow
+'''
+    update.message.reply_text(msg, parse_mode='markdown')
+
+
+updater = Updater(token=BOT_TOKEN, use_context=True)
+
+
+def start_bot():
+    updater.dispatcher.add_handler(CommandHandler('start', start_message))
     updater.dispatcher.add_handler(CommandHandler('nevskii', nevskii))
     updater.dispatcher.add_handler(CommandHandler('random_stop', random_stop))
     updater.dispatcher.add_handler(MessageHandler(Filters.location, nearest_stops))
     updater.dispatcher.add_handler(MessageHandler(Filters.regex('/stop_([0-9])+'), send_stop_info))
 
     updater.start_polling()
+
+
+def stop_bot():
+    updater.stop()
+
+
+if __name__ == '__main__':
+    start_bot()

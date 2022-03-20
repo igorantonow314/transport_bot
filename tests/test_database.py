@@ -31,12 +31,12 @@ def test_get_random_stop_id():
     assert get_stop(i) is not None
 
 
-@pytest.mark.skip
+@pytest.mark.xfail
 def test_geo_dist():
     london_coord = (51.5085300, -0.1257400)
     paris_coord = (48.8534100, 2.3488000)
     dist = geo_dist(*london_coord, *paris_coord)
-    assert abs(dist - 34276) < 1000
+    assert abs(dist - 342760) < 1000
 
 
 def check_one_stop(stop_id):
@@ -51,7 +51,14 @@ def check_one_stop(stop_id):
         last_dist = new_dist
 
 
-def test_get_nearest_stops():
+def test_nearest_stops():
+    seed(94838208492)
+    for i in range(10):
+        check_one_stop(get_random_stop_id())
+
+
+@pytest.mark.skip
+def test_get_nearest_stops_full():
     seed(22800210614279115)
     for i in range(100):
         check_one_stop(get_random_stop_id())
