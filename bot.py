@@ -13,10 +13,6 @@ from bot_conf import BOT_TOKEN
 
 # BOT_TOKEN = 'blablabla' # please replace by yours
 
-updater = Updater(token=BOT_TOKEN, use_context=True)
-
-dispatcher = updater.dispatcher
-
 
 def get_forecast_by_stop(stopID):
     '''
@@ -25,6 +21,7 @@ def get_forecast_by_stop(stopID):
     See also forecast_json_to_text() for human-readable result.
     Data from site: transport.orgp.spb.ru
     '''
+    assert get_stop(int(stopID)) is not None
     data_url = "https://transport.orgp.spb.ru/\
 Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
     d = requests.get(data_url)
@@ -60,7 +57,13 @@ def stop_info(stop_id):
     forecast_json = get_forecast_by_stop(stop_id)
     msg = '*Остановка: ' + get_stop(stop_id).stop_name + '*\n'
     msg += forecast_json_to_text(forecast_json)
+    msg += 'Обновить: /stop\\_' + str(stop_id)
     return msg
+
+
+def send_stop_info(update: Update, context: CallbackContext):
+    stop_id = int(update.message.text.replace('/stop_', ''))
+    update.message.reply_text(stop_info(stop_id), parse_mode='markdown')
 
 
 def nevskii(update: Update, context: CallbackContext):
@@ -72,29 +75,26 @@ def nevskii(update: Update, context: CallbackContext):
                              parse_mode='markdown')
 
 
-nevs_handler = CommandHandler('nevskii', nevskii)
-dispatcher.add_handler(nevs_handler)
-
-
 def random_stop(update: Update, context: CallbackContext):
     msg = stop_info(get_random_stop_id())
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg,
                              parse_mode='markdown')
 
 
-random_stop_handler = CommandHandler('random_stop', random_stop)
-dispatcher.add_handler(random_stop_handler)
-
-
 def nearest_stops(update: Update, context: CallbackContext):
     stops = get_nearest_stops(update.message.location.latitude,
-                              update.message.location.longitude)
-    msg = '\n'.join([str(i) + ": " + get_stop(i).stop_name for i in stops])
-    update.message.reply_text(msg)
+                              update.message.location.longitude, n=10)
+    msg = '\n'.join(['/stop\\_'+str(i) + ": " + get_stop(i).stop_name for i in stops])
+    update.message.reply_text(msg, parse_mode='markdown')
 
-
-updater.dispatcher.add_handler(MessageHandler(Filters.location, nearest_stops))
 
 
 if __name__ == '__main__':
+    updater = Updater(token=BOT_TOKEN, use_context=True)
+
+    updater.dispatcher.add_handler(CommandHandler('nevskii', nevskii))
+    updater.dispatcher.add_handler(CommandHandler('random_stop', random_stop))
+    updater.dispatcher.add_handler(MessageHandler(Filters.location, nearest_stops))
+    updater.dispatcher.add_handler(MessageHandler(Filters.regex('/stop_([0-9])+'), send_stop_info))
+
     updater.start_polling()
