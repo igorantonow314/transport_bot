@@ -23,12 +23,18 @@ Portal/transport/internalapi/gtfs/feed.zip'
 def _load_databases():
     global _route_df
     global _stop_df
+    global _stop_times_df
+    global _trips_df
     if not (os.path.exists('feed/routes.txt')
-            and os.path.exists('feed/stops.txt')):
+            and os.path.exists('feed/stops.txt')
+            and os.path.exists('feed/stop_times.txt')
+            and os.path.exists('feed/trips.txt')):
         print('downloading files...')
         update_feed_files()
     _route_df = pd.read_csv('feed/routes.txt')
     _stop_df = pd.read_csv('feed/stops.txt')
+    _stop_times_df = pd.read_csv('feed/stop_times.txt')
+    _trips_df = pd.read_csv('feed/trips.txt')
 
 
 def _preprocess_stops():
@@ -111,6 +117,26 @@ def get_nearest_stops(lat, lon, n=5):
                                         lon * _koeff),
                                        num_results=n))
     return res
+
+
+def get_stops_by_route(route_id: int, direction_id: int):
+    '''
+    Returns the list of stops in the correct order.
+    :return: list of stop_id
+    '''
+    if not (_trips_df.route_id == route_id).any():
+        raise KeyError(route_id)
+    trip_ids = (_trips_df[(_trips_df.route_id == route_id)
+                          & (_trips_df.direction_id == direction_id)]
+                .trip_id.unique())
+    # There are different 'trip' records, but stops sequence doesn't
+    # depend on it. It depends only on route_id and direction_id. Difference
+    # between 'trip' records is in other fields like arrival_time.
+    # I checked it myself.
+    # So, let's use trip_ids[0]
+    stops = _stop_times_df[_stop_times_df.trip_id == trip_ids[0]]
+    ret = stops[['stop_id', 'stop_sequence']].sort_values('stop_sequence')
+    return list(ret.stop_id)
 
 
 _load_databases()
