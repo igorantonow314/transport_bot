@@ -13,6 +13,7 @@ from database import (
     get_random_stop_id,
     get_nearest_stops,
     get_stops_by_route,
+    get_direction_by_stop,
 )
 
 from bot_conf import BOT_TOKEN
@@ -39,7 +40,7 @@ Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
     return json.loads(forecast_json)
 
 
-def forecast_json_to_text(forecast_json):
+def forecast_json_to_text(forecast_json, stop_id):
     '''
     Converts result of get_forecast_by_stop into human-readable form.
     '''
@@ -54,7 +55,8 @@ def forecast_json_to_text(forecast_json):
                       + route.route_short_name
                       + '*\n_прибудет в ' + p['arrivingTime'].split()[1][:-3]
                       + '_\n')
-        msg += '_маршрут: _' + '/route\\_' + str(route_id) + '\\_0\n'
+        msg += '_маршрут: _' + '/route\\_' + str(route_id) + '\\_'
+        msg += str(get_direction_by_stop(stop_id, route_id)) + '\n'
     return msg
 
 
@@ -67,8 +69,8 @@ def stop_info(stop_id):
     stop = get_stop(stop_id)
     msg = '*Остановка: ' + stop.stop_name
     msg += TRANSPORT_TYPE_EMOJI[stop.transport_type] + '*\n'
-    msg += forecast_json_to_text(forecast_json)
-    if len(forecast_json_to_text(forecast_json)) == 0:
+    msg += forecast_json_to_text(forecast_json, stop_id)
+    if len(forecast_json_to_text(forecast_json, stop_id)) == 0:
         msg += '_не найдено ни одного автобуса, '
         msg += 'посмотрите другие остановки._\n'
     msg += '\n'

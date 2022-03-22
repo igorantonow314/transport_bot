@@ -139,5 +139,15 @@ def get_stops_by_route(route_id: int, direction_id: int):
     return list(ret.stop_id)
 
 
+def get_direction_by_stop(stop_id: int, route_id: int):
+    if stop_id in get_stops_by_route(route_id, 0):
+        # also if stop is in both directions
+        return 0
+    elif stop_id in get_stops_by_route(route_id, 1):
+        return 1
+    else:
+        raise KeyError
+
+
 _load_databases()
 _preprocess_stops()
