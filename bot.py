@@ -121,13 +121,11 @@ def send_stop_info(update: Update, context: CallbackContext, stop_id=None):
     send_routes_buttons(context, update.effective_chat.id, forecast_json, stop_id)
 
 
-def nevskii(update: Update, context: CallbackContext):
+def nevskii_command_handler(update: Update, context: CallbackContext):
     '''
     Forecast for Nevskii prospect stop
     '''
-    msg = stop_info(15495)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=msg,
-                             parse_mode='markdown')
+    send_stop_info(update, context, stop_id=15495)
 
 
 def random_stop(update: Update, context: CallbackContext):
@@ -162,27 +160,29 @@ def route_info(route_id: int, direction: int):
     return msg
 
 
-def send_route_info(update: Update, context: CallbackContext):
+def route_command_handler(update: Update, context: CallbackContext):
     route_id, direction = map(int, update.message.text
                                    .replace('/route_', '')
                                    .split('_'))
-    update.message.reply_text(route_info(route_id, direction),
-                              parse_mode='markdown')
+    send_route_info(update.effective_chat.id, context, route_id, direction)
 
 
-def button(update: Update, context: CallbackContext) -> None:
-    """Parses the CallbackQuery and updates the message text."""
+def send_route_info(chat_id, context: CallbackContext, route_id, direction):
+    context.bot.send_message(text=route_info(route_id, direction),
+                             chat_id=chat_id,
+                             parse_mode='markdown')
+
+
+def callback_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query_text = str(query.data)
-    print(query_text)
     if query_text.startswith('/'):
         if query_text.startswith('/route_'):
             route_id, direction = map(int, query_text
                                            .replace('/route_', '')
                                            .split('_'))
-            context.bot.send_message(text=route_info(route_id, direction),
-                              chat_id=update.effective_chat.id,
-                              parse_mode='markdown')
+            send_route_info(update.effective_chat.id, context,
+                            route_id, direction)
         if query_text == '/test':
             context.bot.send_message(text='ok', chat_id=update.effective_chat.id)
     
@@ -214,13 +214,13 @@ updater = Updater(token=BOT_TOKEN, use_context=True)
 def start_bot():
     handlers = [
         CommandHandler('start', start_message),
-        CommandHandler('nevskii', nevskii),
+        CommandHandler('nevskii', nevskii_command_handler),
         CommandHandler('random_stop', random_stop),
         MessageHandler(Filters.location, nearest_stops),
         MessageHandler(Filters.regex('/stop_([0-9])+'), send_stop_info),
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
-                       send_route_info),
-        CallbackQueryHandler(button),
+                       route_command_handler),
+        CallbackQueryHandler(callback_handler),
     ]
     for h in handlers:
         updater.dispatcher.add_handler(h)
