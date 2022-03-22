@@ -58,12 +58,6 @@ def forecast_json_to_text(forecast_json, stop_id):
                 + TRANSPORT_TYPE_EMOJI[route.transport_type]
                 + '*' + route.route_short_name.ljust(3) + '*\n')
         routes.add(route_id)
-    # msg += '_Посмотреть маршруты:_\n'
-    # for i in routes:
-    #     msg += TRANSPORT_TYPE_EMOJI[get_route(i).transport_type]
-    #     msg += get_route(i).route_short_name.ljust(3) + '    '
-    #     msg += '/route\\_' + str(route_id) + '\\_'
-    #     msg += str(get_direction_by_stop(stop_id, route_id)) + '\n'
     return msg
 
 
@@ -71,6 +65,7 @@ def stop_info(stop_id):
     '''
     :result: human-readable arrival time forecast for the stop
     in markdown format
+    and forecast_json (так надо)
     '''
     forecast_json = get_forecast_by_stop(stop_id)
     stop = get_stop(stop_id)
@@ -82,38 +77,48 @@ def stop_info(stop_id):
         msg += 'посмотрите другие остановки._\n'
     msg += '\n'
     msg += 'Обновить: /stop\\_' + str(stop_id)
-    reply_markup = make_buttons_with_routes(forecast_json, stop_id)
-    return msg, reply_markup
+    return msg, forecast_json
 
 
-def make_buttons_with_routes(forecast_json, stop_id):
+def send_routes_buttons(context: CallbackContext, chat_id, forecast_json, stop_id):
     routes = [int(p['routeId']) for p in forecast_json['result']]
     routes = set(routes)
-    keyboard = []
-    l5 = []
+    s = []
     for route_id in routes:
-        l5.append(InlineKeyboardButton(
+        s.append((
             TRANSPORT_TYPE_EMOJI[get_route(route_id).transport_type]
             + get_route(route_id).route_short_name,
-            callback_data='/route_' + str(route_id) + '_'
-                          +str(get_direction_by_stop(stop_id, route_id))
+
+            '/route_' + str(route_id) + '_'
+            +str(get_direction_by_stop(stop_id, route_id))
             ))
-        if len(l5) >= 5:
-            keyboard.append(l5)
-            l5 = []
-    if len(l5) > 0:
-        for i in range(5 - len(l5)):
-            l5.append(InlineKeyboardButton(' ', callback_data='/test'))
-    keyboard.append(l5)
+    context.bot.send_message(text='Маршруты:',
+        chat_id = chat_id,
+        reply_markup=make_keyboard(s))
+
+
+def make_keyboard(items, columns=5):
+    keyboard = []
+    row = []
+    for it in items:
+        row.append(InlineKeyboardButton(it[0], callback_data=it[1]))
+        if len(row) >= 5:
+            keyboard.append(row)
+            row = []
+    if len(row) > 0:
+        if len(keyboard) > 0:
+            for i in range(5 - len(row)):
+                row.append(InlineKeyboardButton(' ', callback_data='/test'))
+    keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
 
 def send_stop_info(update: Update, context: CallbackContext, stop_id=None):
     if not stop_id:
         stop_id = int(update.message.text.replace('/stop_', ''))
-    msg, reply_markup = stop_info(stop_id)
-    update.message.reply_text(msg, parse_mode='markdown',
-                              reply_markup=reply_markup)
+    msg, forecast_json = stop_info(stop_id)
+    update.message.reply_text(msg, parse_mode='markdown')
+    send_routes_buttons(context, update.effective_chat.id, forecast_json, stop_id)
 
 
 def nevskii(update: Update, context: CallbackContext):
@@ -165,20 +170,6 @@ def send_route_info(update: Update, context: CallbackContext):
                               parse_mode='markdown')
 
 
-def send_routes_buttons(update: Update, context: CallbackContext): # routes: list[int], chat_id):
-    keyboard = [
-        [
-            InlineKeyboardButton("Option 1", callback_data='1'),
-            InlineKeyboardButton("Option 2", callback_data='2'),
-        ],
-        [InlineKeyboardButton("Option 3", callback_data='3')],
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    update.message.reply_text('Please choose:', reply_markup=reply_markup)
-
-
 def button(update: Update, context: CallbackContext) -> None:
     """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
@@ -194,11 +185,8 @@ def button(update: Update, context: CallbackContext) -> None:
                               parse_mode='markdown')
         if query_text == '/test':
             context.bot.send_message(text='ok', chat_id=update.effective_chat.id)
-    # CallbackQueries need to be answered, even if no notification to the user is needed
-    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
+    
     query.answer()
-
-    # context.bot.send_message(chat_id=update.effective_chat.id, text=f"Selected option: {query.data}")
 
 
 def start_message(update: Update, context: CallbackContext):
@@ -232,7 +220,6 @@ def start_bot():
         MessageHandler(Filters.regex('/stop_([0-9])+'), send_stop_info),
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
                        send_route_info),
-        CommandHandler('test', send_routes_buttons),
         CallbackQueryHandler(button),
     ]
     for h in handlers:
