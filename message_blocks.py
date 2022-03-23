@@ -1,4 +1,6 @@
 from typing import Tuple
+import json
+import requests
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
@@ -15,6 +17,61 @@ from database import (
 
 TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
                         'tram': '🚊', 'ship': '🚢'}
+
+
+def forecast_json_to_text(forecast_json, stop_id):
+    '''
+    Converts result of get_forecast_by_stop into human-readable form.
+    '''
+    # TRANSLATION = {'bus': 'автобус', 'trolley': 'троллейбус',
+    #                'tram': 'трамвай', 'ship': 'аквабус'}
+    assert forecast_json['success']
+    msg = ''
+    routes = set()
+    for p in forecast_json['result']:
+        route_id = int(p['routeId'])
+        route = get_route(route_id)
+        msg += ('_' + p['arrivingTime'].split()[1][:-3] + '_.................'
+                + TRANSPORT_TYPE_EMOJI[route.transport_type]
+                + '*' + route.route_short_name.ljust(3) + '*\n')
+        routes.add(route_id)
+    return msg
+
+
+def get_forecast_by_stop(stopID):
+    '''
+    Requests arrival time forecast for a particular stop.
+
+    See also forecast_json_to_text() for human-readable result.
+    Data from site: transport.orgp.spb.ru
+    '''
+    assert get_stop(int(stopID)) is not None
+    data_url = "https://transport.orgp.spb.ru/\
+Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
+    d = requests.get(data_url)
+    if d.status_code != 200:
+        raise ValueError
+    forecast_json = d.content
+    return json.loads(forecast_json)
+
+
+def stop_info(stop_id):
+    '''
+    :result: human-readable arrival time forecast for the stop
+    in markdown format
+    and forecast_json (так надо)
+    '''
+    forecast_json = get_forecast_by_stop(stop_id)
+    stop = get_stop(stop_id)
+    msg = '*Остановка: ' + stop.stop_name
+    msg += TRANSPORT_TYPE_EMOJI[stop.transport_type] + '*\n'
+    msg += forecast_json_to_text(forecast_json, stop_id)
+    if len(forecast_json_to_text(forecast_json, stop_id)) == 0:
+        msg += '_не найдено ни одного автобуса, '
+        msg += 'посмотрите другие остановки._\n'
+    msg += '\n'
+    msg += 'Обновить: /stop\\_' + str(stop_id)
+    return msg, forecast_json
 
 
 class MsgBlock:
@@ -99,8 +156,6 @@ class BusStopMsgBlock(MsgBlock):
         super().send_new_message(update, context)
 
     def form_message(self, stop_id) -> Tuple[str, InlineKeyboardMarkup]:
-        from bot import stop_info
-
         self.message, forecast_json = stop_info(stop_id)
         rl = [int(p['routeId']) for p in forecast_json['result']]
         routes = set(rl)
