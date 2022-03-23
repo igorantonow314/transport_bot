@@ -17,6 +17,7 @@ from database import (
     get_stops_by_route,
     get_direction_by_stop,
 )
+from message_blocks import test_block
 
 from bot_conf import BOT_TOKEN
 
@@ -185,7 +186,8 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
                             route_id, direction)
         if query_text == '/test':
             context.bot.send_message(text='ok', chat_id=update.effective_chat.id)
-    
+    if query_text.startswith('btn'):
+        test_block.callback_handler(update)
     query.answer()
 
 
@@ -221,6 +223,7 @@ def start_bot():
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
                        route_command_handler),
         CallbackQueryHandler(callback_handler),
+        CommandHandler('test', test_block.send_new_message)
     ]
     for h in handlers:
         updater.dispatcher.add_handler(h)

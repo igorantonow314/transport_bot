@@ -4,3 +4,4 @@ __pycache__
 feed
 feed/*
 bot_conf.py
+.mypy_cache
