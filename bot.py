@@ -87,23 +87,6 @@ def stop_info(stop_id):
     return msg, forecast_json
 
 
-def send_routes_buttons(context: CallbackContext, chat_id, forecast_json, stop_id):
-    routes = [int(p['routeId']) for p in forecast_json['result']]
-    routes = set(routes)
-    s = []
-    for route_id in routes:
-        s.append((
-            TRANSPORT_TYPE_EMOJI[get_route(route_id).transport_type]
-            + get_route(route_id).route_short_name,
-
-            '/route_' + str(route_id) + '_'
-            +str(get_direction_by_stop(stop_id, route_id))
-            ))
-    context.bot.send_message(text='Маршруты:',
-        chat_id = chat_id,
-        reply_markup=make_keyboard(s))
-
-
 def make_keyboard(items, columns=5):
     keyboard = []
     row = []
@@ -139,19 +122,6 @@ def random_stop(update: Update, context: CallbackContext):
     send_stop_info(update, context, get_random_stop_id())
 
 
-def nearest_stops(update: Update, context: CallbackContext):
-    stops = get_nearest_stops(update.message.location.latitude,
-                              update.message.location.longitude, n=10)
-    msg = '*Ближайшие остановки:*\n'
-    for i in stops:
-        msg += (('/stop\\_'+str(i) + ": ").ljust(13)
-                + TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
-                + get_stop(i).stop_name
-                )
-        msg += '\n'
-    update.message.reply_text(msg, parse_mode='markdown')
-
-
 def route_info(route_id: int, direction: int):
     msg = '_Остановки маршрута:_\n'
     msg += '*' + get_route(route_id).route_long_name + '*\n'
@@ -165,13 +135,6 @@ def route_info(route_id: int, direction: int):
     msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
     msg += f'/route\\_{route_id}\\_{1-direction}\n'
     return msg
-
-
-def route_command_handler(update: Update, context: CallbackContext):
-    route_id, direction = map(int, update.message.text
-                                   .replace('/route_', '')
-                                   .split('_'))
-    send_route_info(update.effective_chat.id, context, route_id, direction)
 
 
 def send_route_info(chat_id, context: CallbackContext, route_id, direction):
@@ -194,28 +157,9 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
             context.bot.send_message(text='ok', chat_id=update.effective_chat.id)
     if query_text.startswith('btn'):
         test_block.callback_handler(update)
-    if query_text.startswith('StopMsgBlock'):
+    if query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
     query.answer()
-
-
-def start_message(update: Update, context: CallbackContext):
-    msg = '''Привет!
-Это альфа версия бота. Чтобы посмотреть расписание транспорта\
- на ближайшей остановке, пришли мне своё местоположение (или не своё).\
- Также можно посмотреть расписание для случайной остановки: \
-/random\\_stop
-
-**Все команды:**
-/nevskii -- расписание транспорта на остановке "Невский проспект"
-/random\\_stop -- расписание транспорта на случайной остановке
-/stop\\_15495 -- расписание транспорта на остановке с соответствующим id
-/route\\_306\\_0 -- остановки маршрута с id 306 и направлением 0 (прямым)
-
-**Контакты:**
-@igorantonow
-'''
-    update.message.reply_text(msg, parse_mode='markdown')
 
 
 updater = Updater(token=BOT_TOKEN, use_context=True)
