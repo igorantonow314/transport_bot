@@ -17,7 +17,7 @@ from database import (
     get_stops_by_route,
     get_direction_by_stop,
 )
-from message_blocks import test_block
+from message_blocks import stop_msgblock, test_block, nearest_stops_msgblock
 
 from bot_conf import BOT_TOKEN
 
@@ -188,6 +188,8 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
             context.bot.send_message(text='ok', chat_id=update.effective_chat.id)
     if query_text.startswith('btn'):
         test_block.callback_handler(update)
+    if query_text.startswith('StopMsgBlock'):
+        stop_msgblock.callback_handler(update, context)
     query.answer()
 
 
@@ -218,8 +220,9 @@ def start_bot():
         CommandHandler('start', start_message),
         CommandHandler('nevskii', nevskii_command_handler),
         CommandHandler('random_stop', random_stop),
-        MessageHandler(Filters.location, nearest_stops),
-        MessageHandler(Filters.regex('/stop_([0-9])+'), send_stop_info),
+        MessageHandler(Filters.location, nearest_stops_msgblock.send_new_message),
+        MessageHandler(Filters.regex('/stop_([0-9])+'),
+                       stop_msgblock.send_new_message),
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
                        route_command_handler),
         CallbackQueryHandler(callback_handler),
