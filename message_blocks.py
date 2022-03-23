@@ -4,6 +4,18 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
 from telegram.ext.callbackcontext import CallbackContext
 
+from database import (
+    get_route,
+    get_direction_by_stop,
+    get_nearest_stops,
+    get_stop,
+    get_stops_by_route,
+)
+
+
+TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
+                        'tram': '🚊', 'ship': '🚢'}
+
 
 class MsgBlock:
     """Class for managing messages with inline buttons"""
@@ -67,11 +79,26 @@ class StartMsgBlock(MsgBlock):
         self.kbd = InlineKeyboardMarkup([[]])
 
 
+def make_keyboard(items, columns=5):
+    keyboard = []
+    row = []
+    for it in items:
+        row.append(InlineKeyboardButton(it[0], callback_data=it[1]))
+        if len(row) >= 5:
+            keyboard.append(row)
+            row = []
+    if len(row) > 0:
+        if len(keyboard) > 0:
+            for i in range(5 - len(row)):
+                row.append(InlineKeyboardButton(' ', callback_data='/test'))
+    keyboard.append(row)
+    return InlineKeyboardMarkup(keyboard)
+
+
 class BusStopMsgBlock(MsgBlock):
     """Message with forecast for the stop"""
     def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
-        from bot import stop_info, TRANSPORT_TYPE_EMOJI, make_keyboard
-        from database import get_route, get_direction_by_stop
+        from bot import stop_info
 
         assert update.message is not None
         assert update.message.text is not None
@@ -111,9 +138,6 @@ class NearestStopsMsgBlock(MsgBlock):
         assert update.message is not None
         assert update.message.location is not None
 
-        from bot import TRANSPORT_TYPE_EMOJI
-        from database import get_nearest_stops, get_stop
-
         stops = get_nearest_stops(update.message.location.latitude,
                                   update.message.location.longitude, n=10)
         msg = '*Ближайшие остановки:*\n'
@@ -137,7 +161,6 @@ class RouteMsgBlock(MsgBlock):
             update.message.text.replace('/route_', '').split('_')
             )
 
-        from database import get_route, get_stop, get_stops_by_route
         msg = '_Остановки маршрута:_\n'
         msg += '*' + get_route(route_id).route_long_name + '*\n'
         msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'

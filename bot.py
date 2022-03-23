@@ -87,22 +87,6 @@ def stop_info(stop_id):
     return msg, forecast_json
 
 
-def make_keyboard(items, columns=5):
-    keyboard = []
-    row = []
-    for it in items:
-        row.append(InlineKeyboardButton(it[0], callback_data=it[1]))
-        if len(row) >= 5:
-            keyboard.append(row)
-            row = []
-    if len(row) > 0:
-        if len(keyboard) > 0:
-            for i in range(5 - len(row)):
-                row.append(InlineKeyboardButton(' ', callback_data='/test'))
-    keyboard.append(row)
-    return InlineKeyboardMarkup(keyboard)
-
-
 def send_stop_info(update: Update, context: CallbackContext, stop_id=None):
     if not stop_id:
         stop_id = int(update.message.text.replace('/stop_', ''))
