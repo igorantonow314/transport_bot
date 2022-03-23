@@ -29,14 +29,6 @@ class MsgBlock:
                  ]
             ])
 
-    def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
-        """
-        :result: tuple of:
-        - message in markdown format
-        - InlineKeyboardMarkup
-        """
-        return (self.message, self.kbd)
-
     def callback_handler(self,
                          update: Update,
                          context: CallbackContext) -> None:
@@ -50,11 +42,10 @@ class MsgBlock:
                          update: Update,
                          context: CallbackContext) -> None:
         assert update.effective_chat is not None
-        msg, kbd = self.form_message(update)
-        context.bot.send_message(text=msg,
+        context.bot.send_message(text=self.message,
                                  parse_mode='markdown',
                                  chat_id=update.effective_chat.id,
-                                 reply_markup=kbd)
+                                 reply_markup=self.kbd)
 
 
 class StartMsgBlock(MsgBlock):
@@ -97,13 +88,19 @@ def make_keyboard(items, columns=5):
 
 class BusStopMsgBlock(MsgBlock):
     """Message with forecast for the stop"""
-    def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
-        from bot import stop_info
-
+    def send_new_message(self,
+                         update: Update,
+                         context: CallbackContext) -> None:
         assert update.message is not None
         assert update.message.text is not None
         assert update.message.text.startswith('/stop_')
         stop_id = int(update.message.text.replace('/stop_', ''))
+        self.message, self.kbd = self.form_message(stop_id)
+        super().send_new_message(update, context)
+
+    def form_message(self, stop_id) -> Tuple[str, InlineKeyboardMarkup]:
+        from bot import stop_info
+
         self.message, forecast_json = stop_info(stop_id)
         rl = [int(p['routeId']) for p in forecast_json['result']]
         routes = set(rl)
@@ -134,12 +131,10 @@ class BusStopMsgBlock(MsgBlock):
 
 class NearestStopsMsgBlock(MsgBlock):
     """Stops behind sended location"""
-    def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
-        assert update.message is not None
-        assert update.message.location is not None
-
-        stops = get_nearest_stops(update.message.location.latitude,
-                                  update.message.location.longitude, n=10)
+    def form_message(self,
+                     latitude: float,
+                     longitude: float) -> Tuple[str, InlineKeyboardMarkup]:
+        stops = get_nearest_stops(latitude, longitude, n=10)
         msg = '*Ближайшие остановки:*\n'
         for i in stops:
             msg += (('/stop\\_'+str(i) + ": ").ljust(13)
@@ -149,18 +144,24 @@ class NearestStopsMsgBlock(MsgBlock):
             msg += '\n'
         return msg, InlineKeyboardMarkup([[]])
 
+    def send_new_message(self,
+                         update: Update,
+                         context: CallbackContext) -> None:
+        assert update.message is not None
+        assert update.message.location is not None
+
+        self.message, self.kbd = self.form_message(
+            update.message.location.latitude,
+            update.message.location.longitude
+            )
+        super().send_new_message(update, context)
+
 
 class RouteMsgBlock(MsgBlock):
     """Route stops list"""
-    def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
-        assert update.message is not None
-        assert update.message.text is not None
-
-        route_id, direction = map(
-            int,
-            update.message.text.replace('/route_', '').split('_')
-            )
-
+    def form_message(self,
+                     route_id: int,
+                     direction: int) -> Tuple[str, InlineKeyboardMarkup]:
         msg = '_Остановки маршрута:_\n'
         msg += '*' + get_route(route_id).route_long_name + '*\n'
         msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
@@ -173,6 +174,19 @@ class RouteMsgBlock(MsgBlock):
         msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
         msg += f'/route\\_{route_id}\\_{1-direction}\n'
         return msg, InlineKeyboardMarkup([[]])
+
+    def send_new_message(self,
+                         update: Update,
+                         context: CallbackContext) -> None:
+        assert update.message is not None
+        assert update.message.text is not None
+
+        route_id, direction = map(
+            int,
+            update.message.text.replace('/route_', '').split('_')
+            )
+        self.message, self.kbd = self.form_message(route_id, direction)
+        super().send_new_message(update, context)
 
 
 stop_msgblock = BusStopMsgBlock()

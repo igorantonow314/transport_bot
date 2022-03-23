@@ -140,7 +140,7 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
         if query_text == '/test':
             context.bot.send_message(text='ok', chat_id=update.effective_chat.id)
     if query_text.startswith('btn'):
-        test_block.callback_handler(update)
+        test_block.callback_handler(update, context)
     if query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
     query.answer()
