@@ -45,11 +45,30 @@ class MsgBlock:
                                  reply_markup=kbd)
 
 
-class StopMsgBlock(MsgBlock):
-    """Message with forecast for the stop"""
+class StartMsgBlock(MsgBlock):
+    """Welcome message"""
     def __init__(self):
-        super(StopMsgBlock, self).__init__()
+        super(MsgBlock, self).__init__()
+        self.message = '''Привет!
+Это альфа версия бота. Чтобы посмотреть расписание транспорта\
+ на ближайшей остановке, пришли мне своё местоположение (или не своё).\
+ Также можно посмотреть расписание для случайной остановки: \
+/random\\_stop
 
+**Все команды:**
+/nevskii -- расписание транспорта на остановке "Невский проспект"
+/random\\_stop -- расписание транспорта на случайной остановке
+/stop\\_15495 -- расписание транспорта на остановке с соответствующим id
+/route\\_306\\_0 -- остановки маршрута с id 306 и направлением 0 (прямым)
+
+**Контакты:**
+@igorantonow
+'''
+        self.kbd = InlineKeyboardMarkup([[]])
+
+
+class BusStopMsgBlock(MsgBlock):
+    """Message with forecast for the stop"""
     def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
         from bot import stop_info, TRANSPORT_TYPE_EMOJI, make_keyboard
         from database import get_route, get_direction_by_stop
@@ -67,7 +86,7 @@ class StopMsgBlock(MsgBlock):
                 TRANSPORT_TYPE_EMOJI[get_route(route_id).transport_type]
                 + get_route(route_id).route_short_name,
 
-                'StopMsgBlock get_route ' + str(route_id) + ' '
+                'BusStopMsgBlock get_route ' + str(route_id) + ' '
                 + str(get_direction_by_stop(stop_id, route_id))
                 ))
         return self.message, make_keyboard(s)
@@ -79,7 +98,7 @@ class StopMsgBlock(MsgBlock):
         assert update.callback_query.data is not None
         assert update.effective_chat is not None
         params = update.callback_query.data.split()
-        assert params[0] == 'StopMsgBlock'
+        assert params[0] == 'BusStopMsgBlock'
         if params[1] == 'get_route':
             from bot import send_route_info
             send_route_info(update.effective_chat.id,
@@ -107,6 +126,34 @@ class NearestStopsMsgBlock(MsgBlock):
         return msg, InlineKeyboardMarkup([[]])
 
 
-stop_msgblock = StopMsgBlock()
+class RouteMsgBlock(MsgBlock):
+    """Route stops list"""
+    def form_message(self, update: Update) -> Tuple[str, InlineKeyboardMarkup]:
+        assert update.message is not None
+        assert update.message.text is not None
+
+        route_id, direction = map(
+            int,
+            update.message.text.replace('/route_', '').split('_')
+            )
+
+        from database import get_route, get_stop, get_stops_by_route
+        msg = '_Остановки маршрута:_\n'
+        msg += '*' + get_route(route_id).route_long_name + '*\n'
+        msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
+        msg += '\n'
+        stops = get_stops_by_route(route_id, direction)
+        for s in stops:
+            msg += '/stop\\_' + str(s) + ': '
+            msg += get_stop(s).stop_name + '\n'
+        msg += '\n'
+        msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
+        msg += f'/route\\_{route_id}\\_{1-direction}\n'
+        return msg, InlineKeyboardMarkup([[]])
+
+
+stop_msgblock = BusStopMsgBlock()
 test_block = MsgBlock()
 nearest_stops_msgblock = NearestStopsMsgBlock()
+route_msgblock = RouteMsgBlock()
+start_msg_msgblock = StartMsgBlock()

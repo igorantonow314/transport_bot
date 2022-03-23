@@ -17,7 +17,13 @@ from database import (
     get_stops_by_route,
     get_direction_by_stop,
 )
-from message_blocks import stop_msgblock, test_block, nearest_stops_msgblock
+from message_blocks import (
+    stop_msgblock,
+    test_block,
+    nearest_stops_msgblock,
+    route_msgblock,
+    start_msg_msgblock,
+)
 
 from bot_conf import BOT_TOKEN
 
@@ -217,14 +223,14 @@ updater = Updater(token=BOT_TOKEN, use_context=True)
 
 def start_bot():
     handlers = [
-        CommandHandler('start', start_message),
+        CommandHandler('start', start_msg_msgblock.send_new_message),
         CommandHandler('nevskii', nevskii_command_handler),
         CommandHandler('random_stop', random_stop),
         MessageHandler(Filters.location, nearest_stops_msgblock.send_new_message),
         MessageHandler(Filters.regex('/stop_([0-9])+'),
                        stop_msgblock.send_new_message),
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
-                       route_command_handler),
+                       route_msgblock.send_new_message),
         CallbackQueryHandler(callback_handler),
         CommandHandler('test', test_block.send_new_message)
     ]
