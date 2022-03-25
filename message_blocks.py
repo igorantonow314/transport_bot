@@ -1,17 +1,16 @@
 from typing import Tuple
-import json
-import requests
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
 from telegram.ext.callbackcontext import CallbackContext
 
-from database import (
+from data import (
     get_route,
     get_direction_by_stop,
     get_nearest_stops,
     get_stop,
     get_stops_by_route,
+    get_forecast_by_stop,
 )
 
 
@@ -36,23 +35,6 @@ def forecast_json_to_text(forecast_json, stop_id):
                 + '*' + route.route_short_name.ljust(3) + '*\n')
         routes.add(route_id)
     return msg
-
-
-def get_forecast_by_stop(stopID):
-    '''
-    Requests arrival time forecast for a particular stop.
-
-    See also forecast_json_to_text() for human-readable result.
-    Data from site: transport.orgp.spb.ru
-    '''
-    assert get_stop(int(stopID)) is not None
-    data_url = "https://transport.orgp.spb.ru/\
-Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
-    d = requests.get(data_url)
-    if d.status_code != 200:
-        raise ValueError
-    forecast_json = d.content
-    return json.loads(forecast_json)
 
 
 def stop_info(stop_id):

@@ -1,11 +1,19 @@
 import pandas as pd
 import math
+import json
 from random import choice
 import zipfile
 import requests
 import os
+from typing import Optional
 
-from rtree import index as rtree_index
+from rtree import index as rtree_index  # type: ignore
+
+
+_route_df: Optional[pd.DataFrame] = None
+_stop_df: Optional[pd.DataFrame] = None
+_stop_times_df: Optional[pd.DataFrame] = None
+_trips_df: Optional[pd.DataFrame] = None
 
 
 def update_feed_files():
@@ -51,7 +59,7 @@ def _preprocess_stops():
                              i.stop_lon * _koeff))
 
 
-def get_route(route_id: int):
+def get_route(route_id: int) -> pd.Series:
     '''
     :return: Series object with properties:
     - route_short_name
@@ -59,9 +67,10 @@ def get_route(route_id: int):
     - route_long_name
     '''
     # TODO: return dict or something else
+    assert _route_df is not None
     r = _route_df[_route_df.route_id == route_id]
     if len(r) == 0:
-        return None
+        raise ValueError(f'Cannot find routes with id {route_id}')
     return r.iloc[0]
 
 
@@ -79,9 +88,10 @@ def get_stop(stop_id: int):
     - stop_lon
     '''
     # TODO: return dict or something else
+    assert _stop_df is not None
     r = _stop_df[_stop_df.stop_id == stop_id]
     if len(r) == 0:
-        return None
+        raise ValueError(f'Cannot find stops with id {stop_id}')
     return r.iloc[0]
 
 
@@ -124,8 +134,10 @@ def get_stops_by_route(route_id: int, direction_id: int):
     Returns the list of stops in the correct order.
     :return: list of stop_id
     '''
+    assert _trips_df is not None
+    assert _stop_times_df is not None
     if not (_trips_df.route_id == route_id).any():
-        raise KeyError(route_id)
+        raise ValueError(f'Cannot find trips for route_id={route_id}')
     trip_ids = (_trips_df[(_trips_df.route_id == route_id)
                           & (_trips_df.direction_id == direction_id)]
                 .trip_id.unique())
@@ -147,6 +159,23 @@ def get_direction_by_stop(stop_id: int, route_id: int):
         return 1
     else:
         raise KeyError
+
+
+def get_forecast_by_stop(stopID):
+    '''
+    Requests arrival time forecast for a particular stop.
+
+    See also forecast_json_to_text() for human-readable result.
+    Data from site: transport.orgp.spb.ru
+    '''
+    assert get_stop(int(stopID)) is not None
+    data_url = "https://transport.orgp.spb.ru/\
+Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
+    d = requests.get(data_url)
+    if d.status_code != 200:
+        raise ValueError
+    forecast_json = d.content
+    return json.loads(forecast_json)
 
 
 _load_databases()

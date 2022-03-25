@@ -1,6 +1,6 @@
 import pytest
 from random import seed
-from database import (
+from data import (
     get_route,
     get_stop,
     get_random_stop_id,
@@ -87,8 +87,5 @@ def test_get_stops_by_route():
 
 
 def test_get_stops_by_route_errors():
-    with pytest.raises(KeyError) as exc_info:
+    with pytest.raises(ValueError):
         get_stops_by_route(312, 0)
-
-    exception_raised = exc_info.value
-    assert exception_raised.args == (312,)

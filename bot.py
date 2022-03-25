@@ -5,7 +5,7 @@ from telegram.ext.commandhandler import CommandHandler
 from telegram.ext.messagehandler import MessageHandler
 from telegram.ext.filters import Filters
 from telegram.ext import CallbackQueryHandler
-from database import (
+from data import (
     get_route,
     get_stop,
     get_random_stop_id,
@@ -27,6 +27,7 @@ TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
 
 
 def send_stop_info(update: Update, context: CallbackContext, stop_id: int):
+    assert update.message is not None    # It is always correct, isn't it?
     msg, kbd = stop_msgblock.form_message(stop_id)
     update.message.reply_text(msg, parse_mode='markdown', reply_markup=kbd)
 
@@ -64,6 +65,8 @@ def send_route_info(chat_id, context: CallbackContext, route_id, direction):
 
 
 def callback_handler(update: Update, context: CallbackContext) -> None:
+    assert update.callback_query is not None
+    assert update.effective_chat is not None   # It is always true, isn't it?
     query = update.callback_query
     query_text = str(query.data)
     if query_text.startswith('/'):

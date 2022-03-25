@@ -5,3 +5,5 @@ feed
 feed/*
 bot_conf.py
 .mypy_cache
+htmlcov
+.coverage
