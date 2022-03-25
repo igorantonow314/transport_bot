@@ -65,6 +65,8 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
         test_block.callback_handler(update, context)
     if query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
+    if query_text.startswith('PaginatedChoosingMsgBlock'):
+        route_msgblock.pager.callback_handler(update, context)
     query.answer()
 
 
@@ -83,7 +85,7 @@ def start_bot():
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
                        route_msgblock.send_new_message),
         CallbackQueryHandler(callback_handler),
-        CommandHandler('test', test_block.send_new_message)
+        CommandHandler('test', test_block.send_new_message),
     ]
     for h in handlers:
         updater.dispatcher.add_handler(h)

@@ -1,5 +1,8 @@
-from typing import Tuple
+from typing import Tuple, Callable, List, Optional
+from math import ceil
+import functools
 
+from telegram import Message
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
 from telegram.ext.callbackcontext import CallbackContext
@@ -79,18 +82,18 @@ class MsgBlock:
 
     def send_new_message(self,
                          update: Update,
-                         context: CallbackContext) -> None:
+                         context: CallbackContext) -> Message:
         assert update.effective_chat is not None
-        context.bot.send_message(text=self.message,
-                                 parse_mode='markdown',
-                                 chat_id=update.effective_chat.id,
-                                 reply_markup=self.kbd)
+        return context.bot.send_message(text=self.message,
+                                        parse_mode='markdown',
+                                        chat_id=update.effective_chat.id,
+                                        reply_markup=self.kbd)
 
 
 class StartMsgBlock(MsgBlock):
     """Welcome message"""
     def __init__(self):
-        super(MsgBlock, self).__init__()
+        super().__init__()
         self.message = '''Привет!
 Это альфа версия бота. Чтобы посмотреть расписание транспорта\
  на ближайшей остановке, пришли мне своё местоположение (или не своё).\
@@ -109,7 +112,8 @@ class StartMsgBlock(MsgBlock):
         self.kbd = InlineKeyboardMarkup([[]])
 
 
-def make_keyboard(items, columns=5):
+def make_keyboard(items: List[Tuple[str, str]], columns=5):
+    """:param items: list of (button name, button callback)"""
     keyboard = []
     row = []
     for it in items:
@@ -129,13 +133,13 @@ class BusStopMsgBlock(MsgBlock):
     """Message with forecast for the stop"""
     def send_new_message(self,
                          update: Update,
-                         context: CallbackContext) -> None:
+                         context: CallbackContext) -> Message:
         assert update.message is not None
         assert update.message.text is not None
         assert update.message.text.startswith('/stop_')
         stop_id = int(update.message.text.replace('/stop_', ''))
         self.message, self.kbd = self.form_message(stop_id)
-        super().send_new_message(update, context)
+        return super().send_new_message(update, context)
 
     def form_message(self, stop_id) -> Tuple[str, InlineKeyboardMarkup]:
         self.message, forecast_json = stop_info(stop_id)
@@ -157,13 +161,16 @@ class BusStopMsgBlock(MsgBlock):
                          context: CallbackContext) -> None:
         assert update.callback_query is not None
         assert update.callback_query.data is not None
-        assert update.effective_chat is not None
+        assert update.callback_query.message is not None
         params = update.callback_query.data.split()
         assert params[0] == 'BusStopMsgBlock'
         if params[1] == 'get_route':
-            from bot import send_route_info
-            send_route_info(update.effective_chat.id,
-                            context, int(params[2]), int(params[3]))
+            some_route_msgblock = RouteMsgBlock()
+            msg, kbd = some_route_msgblock.form_message(int(params[2]),
+                                                        int(params[3]))
+            update.callback_query.message.edit_text(
+                msg, parse_mode='markdown', reply_markup=kbd)
+            update.callback_query.answer()
 
 
 class NearestStopsMsgBlock(MsgBlock):
@@ -183,7 +190,7 @@ class NearestStopsMsgBlock(MsgBlock):
 
     def send_new_message(self,
                          update: Update,
-                         context: CallbackContext) -> None:
+                         context: CallbackContext) -> Message:
         assert update.message is not None
         assert update.message.location is not None
 
@@ -191,7 +198,92 @@ class NearestStopsMsgBlock(MsgBlock):
             update.message.location.latitude,
             update.message.location.longitude
             )
-        super().send_new_message(update, context)
+        return super().send_new_message(update, context)
+
+
+class PaginatedChoosingMsgBlock(MsgBlock):
+    def __init__(self):
+        super().__init__()
+        self.title = "Выберите:"
+        # _type: list[Tuple[str, Callable[[Update, CallbackContext], None]]]
+        self.option_list: List[Tuple[str, Callable[[Update, CallbackContext],
+                                                   None]]] = []
+
+        self.page_size = 10    # recommendation: size = 5 * n
+        self.message_id: Optional[int] = None
+
+    def set_title(self, title: str):
+        self.title = title
+
+    def add_option(self, annotation: str, action: Callable):
+        if type(annotation) is not str:
+            raise TypeError('annotation must be str')
+        if not callable(action):
+            raise TypeError('action must be callable')
+        self.option_list.append((annotation, action))
+
+    def form_page(self, page_num=0):
+        msg = self.title + '\n'
+        s = page_num * self.page_size
+        e = min(len(self.option_list), (page_num + 1) * self.page_size)
+        for i in range(s, e):
+            msg += f'*{i}.* {self.option_list[i][0]} \n'
+        kbd = make_keyboard([
+            (str(i), f'PaginatedChoosingMsgBlock sel {i}')
+            for i in range(s, e)
+        ]).inline_keyboard
+        # TODO: hide inactive buttons
+        kbd.append([
+            InlineKeyboardButton(
+                '<',
+                callback_data=f'PaginatedChoosingMsgBlock page {page_num - 1}'
+            ),
+            InlineKeyboardButton(
+                'x',
+                callback_data='PaginatedChoosingMsgBlock del'
+            ),
+            InlineKeyboardButton(
+                '>',
+                callback_data=f'PaginatedChoosingMsgBlock page {page_num + 1}'
+            )
+        ])
+        return msg, InlineKeyboardMarkup(kbd)
+
+    def form_message(self):
+        return self.form_page(0)
+
+    def callback_handler(self,
+                         update: Update,
+                         context: CallbackContext) -> None:
+        assert update.callback_query is not None
+        assert update.callback_query.data is not None
+        assert update.effective_chat is not None
+        params = update.callback_query.data.split()
+        assert params[0] == 'PaginatedChoosingMsgBlock'
+        if params[1] == 'page':
+            assert update.callback_query.message is not None
+            if not update.callback_query.message.message_id == self.message_id:
+                return
+            assert (0 <= int(params[2])
+                    <= ceil(len(self.option_list) / self.page_size))
+            msg, kbd = self.form_page(int(params[2]))
+            update.callback_query.message.edit_text(msg,
+                                                    parse_mode='markdown',
+                                                    reply_markup=kbd)
+        elif params[1] == 'sel':
+            self.option_list[int(params[2])][1](update, context)
+        elif params[1] == 'del':
+            pass   # TODO
+        else:
+            raise ValueError(f'Unknown option: {params[1]}')
+
+    def send_new_message(self,
+                         update: Update,
+                         context: CallbackContext) -> Message:
+        self.message, self.kbd = self.form_message()
+        m = super().send_new_message(update, context)
+        self.message_id = m.message_id
+        return m
 
 
 class RouteMsgBlock(MsgBlock):
@@ -199,22 +291,43 @@ class RouteMsgBlock(MsgBlock):
     def form_message(self,
                      route_id: int,
                      direction: int) -> Tuple[str, InlineKeyboardMarkup]:
-        msg = '_Остановки маршрута:_\n'
-        msg += '*' + get_route(route_id).route_long_name + '*\n'
-        msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
-        msg += '\n'
+        """Do not forget to set up pager.message_id!"""
+        pager = PaginatedChoosingMsgBlock()
+        title = '_Остановки маршрута:_\n'
+        title += '*' + get_route(route_id).route_long_name + '*\n'
+        title += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
+        title += '\n'
+        title += ('_Прямое' if direction else '_Обратное') + ' направление_: '
+        title += f'/route\\_{route_id}\\_{1-direction}\n'
+        pager.set_title(title)
+
         stops = get_stops_by_route(route_id, direction)
+
+        def it_action_t(s: int,
+                        update: Update,
+                        context: CallbackContext) -> None:
+            # TODO
+            assert update.callback_query is not None
+            assert update.callback_query.message is not None
+            bus_stop_msgblock = BusStopMsgBlock()
+            msg, kbd = bus_stop_msgblock.form_message(s)
+            update.callback_query.message.edit_text(
+                msg,
+                parse_mode='markdown',
+                reply_markup=kbd
+            )
+            update.callback_query.answer()
+
         for s in stops:
-            msg += '/stop\\_' + str(s) + ': '
-            msg += get_stop(s).stop_name + '\n'
-        msg += '\n'
-        msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
-        msg += f'/route\\_{route_id}\\_{1-direction}\n'
-        return msg, InlineKeyboardMarkup([[]])
+            it_name = get_stop(s).stop_name
+            pager.add_option(it_name, functools.partial(it_action_t, s))
+        msg, kbd = pager.form_message()
+        self.pager = pager
+        return msg, kbd
 
     def send_new_message(self,
                          update: Update,
-                         context: CallbackContext) -> None:
+                         context: CallbackContext) -> Message:
         assert update.message is not None
         assert update.message.text is not None
 
@@ -222,8 +335,8 @@ class RouteMsgBlock(MsgBlock):
             int,
             update.message.text.replace('/route_', '').split('_')
             )
-        self.message, self.kbd = self.form_message(route_id, direction)
-        super().send_new_message(update, context)
+        self.form_message(route_id, direction)
+        return self.pager.send_new_message(update, context)
 
 
 stop_msgblock = BusStopMsgBlock()
