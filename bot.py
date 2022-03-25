@@ -5,12 +5,7 @@ from telegram.ext.commandhandler import CommandHandler
 from telegram.ext.messagehandler import MessageHandler
 from telegram.ext.filters import Filters
 from telegram.ext import CallbackQueryHandler
-from data import (
-    get_route,
-    get_stop,
-    get_random_stop_id,
-    get_stops_by_route,
-)
+from data import get_random_stop_id
 from message_blocks import (
     stop_msgblock,
     test_block,
@@ -43,25 +38,12 @@ def random_stop(update: Update, context: CallbackContext):
     send_stop_info(update, context, get_random_stop_id())
 
 
-def route_info(route_id: int, direction: int):
-    msg = '_Остановки маршрута:_\n'
-    msg += '*' + get_route(route_id).route_long_name + '*\n'
-    msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
-    msg += '\n'
-    stops = get_stops_by_route(route_id, direction)
-    for s in stops:
-        msg += '/stop\\_' + str(s) + ': '
-        msg += get_stop(s).stop_name + '\n'
-    msg += '\n'
-    msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
-    msg += f'/route\\_{route_id}\\_{1-direction}\n'
-    return msg
-
-
 def send_route_info(chat_id, context: CallbackContext, route_id, direction):
-    context.bot.send_message(text=route_info(route_id, direction),
-                             chat_id=chat_id,
-                             parse_mode='markdown')
+    context.bot.send_message(
+        text=route_msgblock.form_message(route_id, direction)[0],
+        chat_id=chat_id,
+        parse_mode='markdown'
+    )
 
 
 def callback_handler(update: Update, context: CallbackContext) -> None:
