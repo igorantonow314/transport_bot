@@ -61,13 +61,16 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
         if query_text == '/test':
             context.bot.send_message(text='ok',
                                      chat_id=update.effective_chat.id)
-    if query_text.startswith('btn'):
+    elif query_text.startswith('btn'):
         test_block.callback_handler(update, context)
-    if query_text.startswith('BusStopMsgBlock'):
+    elif query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
-    if query_text.startswith('PaginatedChoosingMsgBlock'):
+    elif query_text.startswith('PaginatedChoosingMsgBlock'):
         route_msgblock.pager.callback_handler(update, context)
-    query.answer()
+    elif query_text.startswith('RouteMsgBlock'):
+        route_msgblock.callback_handler(update, context)
+    else:
+        raise ValueError('Unknown query: '+query_text)
 
 
 updater = Updater(token=BOT_TOKEN, use_context=True)
