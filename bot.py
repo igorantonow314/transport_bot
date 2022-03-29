@@ -51,23 +51,19 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
     assert update.effective_chat is not None   # It is always true, isn't it?
     query = update.callback_query
     query_text = str(query.data)
-    if query_text.startswith('/'):
-        if query_text.startswith('/route_'):
-            route_id, direction = map(int, query_text
-                                      .replace('/route_', '')
-                                      .split('_'))
-            send_route_info(update.effective_chat.id, context,
-                            route_id, direction)
-        if query_text == '/test':
-            context.bot.send_message(text='ok',
-                                     chat_id=update.effective_chat.id)
-    if query_text.startswith('btn'):
-        test_block.callback_handler(update, context)
-    if query_text.startswith('BusStopMsgBlock'):
+    if query_text.startswith('common'):
+        if query_text == 'common delete_me':
+            assert update.callback_query.message is not None
+            update.callback_query.message.delete()
+            query.answer()
+        else:
+            raise ValueError(f'Unknown callback: {query_text}')
+    elif query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
-    if query_text.startswith('RouteMsgBlock'):
+    elif query_text.startswith('RouteMsgBlock'):
         route_msgblock.callback_handler(update, context)
-    query.answer()
+    else:
+        raise ValueError(f'Unknown callback: {query_text}')
 
 
 updater = Updater(token=BOT_TOKEN, use_context=True)
