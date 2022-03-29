@@ -93,19 +93,18 @@ class StartMsgBlock(MsgBlock):
     def __init__(self):
         super(MsgBlock, self).__init__()
         self.message = '''Привет!
-Это альфа версия бота. Чтобы посмотреть расписание транспорта\
- на ближайшей остановке, пришли мне своё местоположение (или не своё).\
+Это бета версия бота. Это значит, что он активно разрабатывается\
+ и развивается.
+Чтобы посмотреть расписание транспорта\
+ на ближайшей остановке, в любое время пришли мне своё *местоположение*\
+ (или не своё).\
  Также можно посмотреть расписание для случайной остановки: \
-/random\\_stop
-
-**Все команды:**
-/nevskii -- расписание транспорта на остановке "Невский проспект"
-/random\\_stop -- расписание транспорта на случайной остановке
-/stop\\_15495 -- расписание транспорта на остановке с соответствующим id
-/route\\_306\\_0 -- остановки маршрута с id 306 и направлением 0 (прямым)
+/random\\_stop, а ещё -- маршрут транспорта, подходящего к данной остановке.
 
 **Контакты:**
 @igorantonow
+Сообщайте обо всех багах, пишите любые предложения по изменению\
+ дизайна, функционала и т.п.
 '''
         self.kbd = InlineKeyboardMarkup([[]])
 
@@ -259,7 +258,7 @@ class RouteMsgBlock(MsgBlock):
         m, kbd = make_paginator(
             options,
             cur_page=page_num,
-            previous_page_cmd='RouteMsgBlock appear_here'
+            previous_page_cmd='RouteMsgBlock appear_here '
                               + f'{route_id} {direction} {page_num-1}',
             next_page_cmd='RouteMsgBlock appear_here '
                           + f'{route_id} {direction} {page_num+1}'
@@ -298,6 +297,8 @@ class RouteMsgBlock(MsgBlock):
                 update.callback_query.message.edit_text(
                     msg, parse_mode='markdown', reply_markup=kbd)
                 update.callback_query.answer()
+            else:
+                raise ValueError(f'Unknown command: {params[1]}')
 
 
 stop_msgblock = BusStopMsgBlock()

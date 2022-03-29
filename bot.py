@@ -38,19 +38,12 @@ def random_stop(update: Update, context: CallbackContext):
     send_stop_info(update, context, get_random_stop_id())
 
 
-def send_route_info(chat_id, context: CallbackContext, route_id, direction):
-    context.bot.send_message(
-        text=route_msgblock.form_message(route_id, direction)[0],
-        chat_id=chat_id,
-        parse_mode='markdown'
-    )
-
-
 def callback_handler(update: Update, context: CallbackContext) -> None:
     assert update.callback_query is not None
     assert update.effective_chat is not None   # It is always true, isn't it?
     query = update.callback_query
     query_text = str(query.data)
+
     if query_text.startswith('common'):
         if query_text == 'common delete_me':
             assert update.callback_query.message is not None
@@ -58,6 +51,7 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
             query.answer()
         else:
             raise ValueError(f'Unknown callback: {query_text}')
+
     elif query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
     elif query_text.startswith('RouteMsgBlock'):
