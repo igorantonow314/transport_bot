@@ -1,3 +1,6 @@
+install:
+	python -m pip install -r requirements.txt
+
 test:
 	flake8
 	mypy .
