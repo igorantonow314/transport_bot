@@ -186,7 +186,7 @@ class BusStopMsgBlock(MsgBlock):
                 TRANSPORT_TYPE_EMOJI[get_route(route_id).transport_type]
                 + get_route(route_id).route_short_name,
 
-                'BusStopMsgBlock get_route ' + str(route_id) + ' '
+                'RouteMsgBlock appear_here ' + str(route_id) + ' '
                 + str(get_direction_by_stop(stop_id, route_id))
                 ))
         return self.message, make_keyboard(s)
@@ -200,9 +200,14 @@ class BusStopMsgBlock(MsgBlock):
         params = update.callback_query.data.split()
         assert params[0] == 'BusStopMsgBlock'
         if params[1] == 'get_route':
-            from bot import send_route_info
-            send_route_info(update.effective_chat.id,
-                            context, int(params[2]), int(params[3]))
+            raise NotImplementedError('deprecated')
+        elif params[1] == 'appear_here':
+            assert get_stop(int(params[2])) is not None
+            assert update.callback_query.message is not None
+            msg, kbd = self.form_message(int(params[2]))
+            update.callback_query.message.edit_text(
+                msg, parse_mode='markdown', reply_markup=kbd)
+            update.callback_query.answer()
 
 
 class NearestStopsMsgBlock(MsgBlock):
