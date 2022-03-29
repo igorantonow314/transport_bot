@@ -1,4 +1,5 @@
-from typing import Tuple
+from typing import Tuple, List, Optional
+import math
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
@@ -125,6 +126,44 @@ def make_keyboard(items, columns=5):
     return InlineKeyboardMarkup(keyboard)
 
 
+def make_paginator(
+        items: List[Tuple[str, str]],
+        previous_page_cmd: str,
+        next_page_cmd: str,
+        title='Выберите:',
+        cur_page=0,
+        page_size=10,
+        ) -> Tuple[str, InlineKeyboardMarkup]:
+    assert 0 <= cur_page
+    assert cur_page <= math.ceil(len(items) / page_size)
+    msg = title + '\n'
+    s = cur_page * page_size
+    e = min(len(items),
+            (cur_page + 1) * page_size)
+    for i in range(s, e):
+        msg += f'*{i}.* {items[i][0]} \n'
+    kbd = make_keyboard([
+        (str(i), items[i][1])
+        for i in range(s, e)
+    ]).inline_keyboard
+    # TODO: hide inactive buttons
+    kbd.append([
+        InlineKeyboardButton(
+            '<',
+            callback_data=previous_page_cmd
+        ),
+        InlineKeyboardButton(
+            'x',
+            callback_data='common delete_me'
+        ),
+        InlineKeyboardButton(
+            '>',
+            callback_data=next_page_cmd
+        )
+    ])
+    return msg, InlineKeyboardMarkup(kbd)
+
+
 class BusStopMsgBlock(MsgBlock):
     """Message with forecast for the stop"""
     def send_new_message(self,
@@ -198,19 +237,32 @@ class RouteMsgBlock(MsgBlock):
     """Route stops list"""
     def form_message(self,
                      route_id: int,
-                     direction: int) -> Tuple[str, InlineKeyboardMarkup]:
+                     direction: int,
+                     page_num: Optional[int] = None
+                     ) -> Tuple[str, InlineKeyboardMarkup]:
+        if not page_num:
+            page_num = 0
         msg = '_Остановки маршрута:_\n'
         msg += '*' + get_route(route_id).route_long_name + '*\n'
         msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
         msg += '\n'
         stops = get_stops_by_route(route_id, direction)
+        options = []
         for s in stops:
-            msg += '/stop\\_' + str(s) + ': '
-            msg += get_stop(s).stop_name + '\n'
-        msg += '\n'
+            options.append((get_stop(s).stop_name,
+                            'BusStopMsgBlock appear_here ' + str(s)))
+        m, kbd = make_paginator(
+            options,
+            cur_page=page_num,
+            previous_page_cmd='RouteMsgBlock appear_here'
+                              + f'{route_id} {direction} {page_num-1}',
+            next_page_cmd='RouteMsgBlock appear_here '
+                          + f'{route_id} {direction} {page_num+1}'
+            )
+        msg += m
         msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
         msg += f'/route\\_{route_id}\\_{1-direction}\n'
-        return msg, InlineKeyboardMarkup([[]])
+        return msg, kbd
 
     def send_new_message(self,
                          update: Update,
@@ -224,6 +276,23 @@ class RouteMsgBlock(MsgBlock):
             )
         self.message, self.kbd = self.form_message(route_id, direction)
         super().send_new_message(update, context)
+
+    def callback_handler(self,
+                         update: Update,
+                         context: CallbackContext) -> None:
+        assert update.callback_query is not None
+        assert update.callback_query.data is not None
+        params = update.callback_query.data.split()
+        if params[0] == 'RouteMsgBlock':
+            if params[1] == 'appear_here':
+                assert update.callback_query.message is not None
+                page_num = 0 if (len(params) == 4) else int(params[4])
+                msg, kbd = self.form_message(int(params[2]),
+                                             int(params[3]),
+                                             page_num)
+                update.callback_query.message.edit_text(
+                    msg, parse_mode='markdown', reply_markup=kbd)
+                update.callback_query.answer()
 
 
 stop_msgblock = BusStopMsgBlock()

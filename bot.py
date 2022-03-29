@@ -65,6 +65,8 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
         test_block.callback_handler(update, context)
     if query_text.startswith('BusStopMsgBlock'):
         stop_msgblock.callback_handler(update, context)
+    if query_text.startswith('RouteMsgBlock'):
+        route_msgblock.callback_handler(update, context)
     query.answer()
 
 
