@@ -133,13 +133,15 @@ def make_paginator(
         items: List[Tuple[str, str]],
         previous_page_cmd: str,
         next_page_cmd: str,
-        title='Выберите:',
+        title: Optional[str] = None,
         cur_page=0,
         page_size=10,
         ) -> Tuple[str, InlineKeyboardMarkup]:
     assert 0 <= cur_page
     assert cur_page <= math.ceil(len(items) / page_size)
-    msg = title + '\n'
+    msg = ''
+    if title:
+        msg += title + '\n'
     s = cur_page * page_size
     e = min(len(items),
             (cur_page + 1) * page_size)
