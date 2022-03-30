@@ -50,8 +50,8 @@ def stop_info(stop_id):
     '''
     forecast_json = get_forecast_by_stop(stop_id)
     stop = get_stop(stop_id)
-    msg = '*Остановка: ' + stop.stop_name
-    msg += TRANSPORT_TYPE_EMOJI[stop.transport_type] + '*\n'
+    msg = '*' + stop.stop_name
+    msg += '*\n'
     msg += forecast_json_to_text(forecast_json, stop_id)
     if len(forecast_json_to_text(forecast_json, stop_id)) == 0:
         msg += '_не найдено ни одного автобуса, '
@@ -137,8 +137,9 @@ def make_paginator(
         cur_page=0,
         page_size=10,
         ) -> Tuple[str, InlineKeyboardMarkup]:
+    max_page_num = math.ceil(len(items) / page_size) - 1
     assert 0 <= cur_page
-    assert cur_page <= math.ceil(len(items) / page_size)
+    assert cur_page <= max_page_num
     msg = ''
     if title:
         msg += title + '\n'
@@ -146,26 +147,39 @@ def make_paginator(
     e = min(len(items),
             (cur_page + 1) * page_size)
     for i in range(s, e):
-        msg += f'*{i}.* {items[i][0]} \n'
+        msg += f'*{i+1}.* {items[i][0]} \n'
+    msg += f'_{s+1} - {e} из {len(items)}_\n'
+
     kbd = make_keyboard([
-        (str(i), items[i][1])
+        (str(i+1), items[i][1])
         for i in range(s, e)
     ]).inline_keyboard
-    # TODO: hide inactive buttons
-    kbd.append([
-        InlineKeyboardButton(
+    ctrls = []
+    if cur_page == 0:
+        ctrls.append(InlineKeyboardButton(
+            ' ',
+            callback_data='common pass'
+        ))
+    else:
+        ctrls.append(InlineKeyboardButton(
             '<',
             callback_data=previous_page_cmd
-        ),
-        InlineKeyboardButton(
+        ))
+    ctrls.append(InlineKeyboardButton(
             'x',
             callback_data='common delete_me'
-        ),
-        InlineKeyboardButton(
+    ))
+    if cur_page == max_page_num:
+        ctrls.append(InlineKeyboardButton(
+            ' ',
+            callback_data='common pass'
+        ))
+    else:
+        ctrls.append(InlineKeyboardButton(
             '>',
             callback_data=next_page_cmd
-        )
-    ])
+        ))
+    kbd.append(ctrls)
     return msg, InlineKeyboardMarkup(kbd)
 
 
@@ -270,7 +284,11 @@ class RouteMsgBlock(MsgBlock):
         logger.info(f'form message by {self}')
         if not page_num:
             page_num = 0
-        msg = '_Остановки маршрута:_\n'
+        route = get_route(route_id)
+        msg = ''
+        msg += '*' + TRANSPORT_TYPE_EMOJI[route.transport_type]
+        msg += route.route_short_name
+        msg += '*\n'
         msg += '*' + get_route(route_id).route_long_name + '*\n'
         msg += ('_Обратное' if direction else '_Прямое') + ' направление_\n'
         msg += '\n'

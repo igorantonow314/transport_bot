@@ -60,6 +60,9 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
             assert update.callback_query.message is not None
             update.callback_query.message.delete()
             query.answer()
+        elif query_text == 'common pass':
+            logger.info('callback: pass')
+            query.answer()
         else:
             raise ValueError(f'Unknown callback: {query_text}')
 
