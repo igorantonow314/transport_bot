@@ -7,3 +7,4 @@ bot_conf.py
 .mypy_cache
 htmlcov
 .coverage
+bot.log

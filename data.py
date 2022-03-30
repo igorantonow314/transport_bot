@@ -6,9 +6,13 @@ import zipfile
 import requests
 import os
 from typing import Optional
+import logging
 
 from rtree import index as rtree_index  # type: ignore
 
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 _route_df: Optional[pd.DataFrame] = None
 _stop_df: Optional[pd.DataFrame] = None
@@ -29,6 +33,7 @@ Portal/transport/internalapi/gtfs/feed.zip'
 
 
 def _load_databases():
+    logger.info('loading databases...')
     global _route_df
     global _stop_df
     global _stop_times_df
@@ -37,8 +42,9 @@ def _load_databases():
             and os.path.exists('feed/stops.txt')
             and os.path.exists('feed/stop_times.txt')
             and os.path.exists('feed/trips.txt')):
-        print('downloading files...')
+        logger.warn('downloading files...')
         update_feed_files()
+        logger.info('files downloaded')
     _route_df = pd.read_csv('feed/routes.txt')
     _stop_df = pd.read_csv('feed/stops.txt')
     _stop_times_df = pd.read_csv('feed/stop_times.txt')
@@ -46,6 +52,7 @@ def _load_databases():
 
 
 def _preprocess_stops():
+    logger.info('preprocessing stops...')
     global _koeff
     global _stop_rtree_idx
     _center_lat = (_stop_df.stop_lat.max() + _stop_df.stop_lat.min()) / 2

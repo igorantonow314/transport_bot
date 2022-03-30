@@ -1,5 +1,6 @@
 from typing import Tuple, List, Optional
 import math
+import logging
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
@@ -17,6 +18,9 @@ from data import (
 
 TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
                         'tram': '🚊', 'ship': '🚢'}
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def forecast_json_to_text(forecast_json, stop_id):
@@ -72,6 +76,7 @@ class MsgBlock:
     def callback_handler(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'callback processing by {self}')
         assert update.callback_query is not None
         assert update.callback_query.message is not None
         button = str(update.callback_query.data)
@@ -81,6 +86,7 @@ class MsgBlock:
     def send_new_message(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'send new message by {self}')
         assert update.effective_chat is not None
         context.bot.send_message(text=self.message,
                                  parse_mode='markdown',
@@ -168,6 +174,7 @@ class BusStopMsgBlock(MsgBlock):
     def send_new_message(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'send new message by {self}')
         assert update.message is not None
         assert update.message.text is not None
         assert update.message.text.startswith('/stop_')
@@ -176,6 +183,7 @@ class BusStopMsgBlock(MsgBlock):
         super().send_new_message(update, context)
 
     def form_message(self, stop_id) -> Tuple[str, InlineKeyboardMarkup]:
+        logger.info(f'form message by {self}')
         self.message, forecast_json = stop_info(stop_id)
         rl = [int(p['routeId']) for p in forecast_json['result']]
         routes = set(rl)
@@ -193,6 +201,7 @@ class BusStopMsgBlock(MsgBlock):
     def callback_handler(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'callback processing by {self}')
         assert update.callback_query is not None
         assert update.callback_query.data is not None
         assert update.effective_chat is not None
@@ -201,6 +210,7 @@ class BusStopMsgBlock(MsgBlock):
         if params[1] == 'get_route':
             raise NotImplementedError('deprecated')
         elif params[1] == 'appear_here':
+            logger.info('callback: appear BusStop message')
             assert get_stop(int(params[2])) is not None
             assert update.callback_query.message is not None
             msg, kbd = self.form_message(int(params[2]))
@@ -214,6 +224,7 @@ class NearestStopsMsgBlock(MsgBlock):
     def form_message(self,
                      latitude: float,
                      longitude: float) -> Tuple[str, InlineKeyboardMarkup]:
+        logger.info(f'form message by {self}')
         stops = get_nearest_stops(latitude, longitude, n=10)
         msg = '*Ближайшие остановки:*\n'
         for i in stops:
@@ -227,6 +238,7 @@ class NearestStopsMsgBlock(MsgBlock):
     def send_new_message(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'send new message by {self}')
         assert update.message is not None
         assert update.message.location is not None
 
@@ -244,6 +256,7 @@ class RouteMsgBlock(MsgBlock):
                      direction: int,
                      page_num: Optional[int] = None
                      ) -> Tuple[str, InlineKeyboardMarkup]:
+        logger.info(f'form message by {self}')
         if not page_num:
             page_num = 0
         msg = '_Остановки маршрута:_\n'
@@ -271,6 +284,7 @@ class RouteMsgBlock(MsgBlock):
     def send_new_message(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'send new message by {self}')
         assert update.message is not None
         assert update.message.text is not None
 
@@ -284,11 +298,13 @@ class RouteMsgBlock(MsgBlock):
     def callback_handler(self,
                          update: Update,
                          context: CallbackContext) -> None:
+        logger.info(f'callback processing by {self}')
         assert update.callback_query is not None
         assert update.callback_query.data is not None
         params = update.callback_query.data.split()
         if params[0] == 'RouteMsgBlock':
             if params[1] == 'appear_here':
+                logger.info('callback: appear/edited Route message')
                 assert update.callback_query.message is not None
                 page_num = 0 if (len(params) == 4) else int(params[4])
                 msg, kbd = self.form_message(int(params[2]),
