@@ -56,8 +56,6 @@ def stop_info(stop_id):
     if len(forecast_json_to_text(forecast_json, stop_id)) == 0:
         msg += '_не найдено ни одного автобуса, '
         msg += 'посмотрите другие остановки._\n'
-    msg += '\n'
-    msg += 'Обновить: /stop\\_' + str(stop_id)
     return msg, forecast_json
 
 
@@ -196,7 +194,13 @@ class BusStopMsgBlock(MsgBlock):
                 'RouteMsgBlock appear_here ' + str(route_id) + ' '
                 + str(get_direction_by_stop(stop_id, route_id))
                 ))
-        return self.message, make_keyboard(s)
+        self.kbd = make_keyboard(s)
+        self.kbd.inline_keyboard.append([
+            InlineKeyboardButton(
+                'Обновить',
+                callback_data=f'BusStopMsgBlock refresh {stop_id}')
+            ])
+        return self.message, self.kbd
 
     def callback_handler(self,
                          update: Update,
@@ -209,7 +213,12 @@ class BusStopMsgBlock(MsgBlock):
         assert params[0] == 'BusStopMsgBlock'
         if params[1] == 'get_route':
             raise NotImplementedError('deprecated')
-        elif params[1] == 'appear_here':
+        if params[1] == 'refresh':
+            assert update.callback_query.message is not None
+            msg = 'Обновление...'
+            update.callback_query.message.edit_text(msg)
+            params[1] = 'appear_here'
+        if params[1] == 'appear_here':
             logger.info('callback: appear BusStop message')
             assert get_stop(int(params[2])) is not None
             assert update.callback_query.message is not None

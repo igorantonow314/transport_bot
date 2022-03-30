@@ -73,9 +73,10 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
         raise ValueError(f'Unknown callback: {query_text}')
 
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    filename='bot.log')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='bot.log')
 updater = Updater(token=BOT_TOKEN, use_context=True)
 
 
