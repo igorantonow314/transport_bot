@@ -1,8 +1,10 @@
 #! /bin/bash
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+cd $SCRIPT_DIR/..
+
 # check updates every 30 mins
 TIME=$((60*30))
-cd transport_bot
 echo "start run"
 python . &
 my_pid=$!
