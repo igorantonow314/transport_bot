@@ -6,6 +6,7 @@ from telegram.ext.messagehandler import MessageHandler
 from telegram.ext.filters import Filters
 from telegram.ext import CallbackQueryHandler
 import logging
+import tg_logger
 
 from data import get_random_stop_id
 from message_blocks import (
@@ -16,12 +17,13 @@ from message_blocks import (
     start_msg_msgblock,
 )
 
-from bot_conf import BOT_TOKEN
+from bot_conf import BOT_TOKEN, BOT_DEBUG_TOKEN
 
 # BOT_TOKEN = 'blablabla' # please replace by yours
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+tg_logger.setup(logger, token=BOT_DEBUG_TOKEN, users=[392072526])
 
 TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
                         'tram': '🚊', 'ship': '🚢'}
@@ -77,7 +79,7 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
 
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     filename='bot.log')
 updater = Updater(token=BOT_TOKEN, use_context=True)
@@ -103,6 +105,13 @@ def start_bot():
     updater.start_polling()
     print('bot started')
     logger.info('Bot started')
+    logger.info('yep')
+    logger.debug('secret')
+    logger.warn('warning')
+    logger.exception('exception')
+    logger.info('t1')
+    logger.error('error')
+    logger.info('t2')
 
 
 def stop_bot():

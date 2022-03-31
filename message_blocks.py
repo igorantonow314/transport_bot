@@ -2,6 +2,7 @@ from typing import Tuple, List, Optional
 import math
 import logging
 
+import tg_logger
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
 from telegram.ext.callbackcontext import CallbackContext
@@ -14,6 +15,7 @@ from data import (
     get_stops_by_route,
     get_forecast_by_stop,
 )
+from bot_conf import BOT_DEBUG_TOKEN
 
 
 TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
@@ -21,6 +23,7 @@ TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+tg_logger.setup(logger, token=BOT_DEBUG_TOKEN, users=[392072526])
 
 
 def forecast_json_to_text(forecast_json, stop_id):

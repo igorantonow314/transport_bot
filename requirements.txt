@@ -4,3 +4,4 @@ pandas
 zipp
 Rtree
 pytest
+tg-logger

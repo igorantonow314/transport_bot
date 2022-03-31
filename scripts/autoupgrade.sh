@@ -13,6 +13,8 @@ do
 	sleep $TIME
 	echo "start update"
 	git pull --force
+	echo "installing..."
+	make install
 	echo "start test"
 	make test
 	if [ $? -eq 0 ];
