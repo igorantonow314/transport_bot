@@ -4,7 +4,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 cd $SCRIPT_DIR/..
 
 # check updates every 30 mins
-TIME=$((60*30))
+TIME=$((60*1))
 echo "start run"
 python . &
 my_pid=$!
