@@ -18,6 +18,21 @@ from data import (
 
 TRANSPORT_TYPE_EMOJI = {'bus': '🚌', 'trolley': '🚎',
                         'tram': '🚊', 'ship': '🚢'}
+EMOJI_MINIMAL_THEME = {
+    'back': '◁',
+    'forward': '▷',
+    'close': '✖️',
+    'change_direction': '⇵'
+}
+
+EMOJI_BLUE_THEME = {
+    'back': '◀',
+    'forward': '▶',
+    'close': '✖️',
+    'change_direction': '↕'
+}
+
+EMOJI = EMOJI_BLUE_THEME
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -162,11 +177,11 @@ def make_paginator(
         ))
     else:
         ctrls.append(InlineKeyboardButton(
-            '<',
+            EMOJI['back'],
             callback_data=previous_page_cmd
         ))
     ctrls.append(InlineKeyboardButton(
-            'x',
+            EMOJI['close'],
             callback_data='common delete_me'
     ))
     if cur_page == max_page_num:
@@ -176,7 +191,7 @@ def make_paginator(
         ))
     else:
         ctrls.append(InlineKeyboardButton(
-            '>',
+            EMOJI['forward'],
             callback_data=next_page_cmd
         ))
     kbd.append(ctrls)
@@ -306,8 +321,12 @@ class RouteMsgBlock(MsgBlock):
                           + f'{route_id} {direction} {page_num+1}'
             )
         msg += m
-        msg += ('_Прямое' if direction else '_Обратное') + ' направление_: '
-        msg += f'/route\\_{route_id}\\_{1-direction}\n'
+        msg += '_Сменить направление_: ' + EMOJI['change_direction']
+        kbd.inline_keyboard[-1].insert(-1, InlineKeyboardButton(
+            EMOJI['change_direction'],
+            callback_data='RouteMsgBlock appear_here '
+                          + f'{route_id} {1-direction} 0'
+        ))
         return msg, kbd
 
     def send_new_message(self,

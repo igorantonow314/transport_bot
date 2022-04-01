@@ -1,6 +1,9 @@
 python-telegram-bot
 requests
 pandas
+pandas-stubs
+mypy
+flake8
 zipp
 Rtree
 pytest
