@@ -29,7 +29,7 @@ EMOJI_BLUE_THEME = {
     'back': '◀',
     'forward': '▶',
     'close': '✖️',
-    'change_direction': '↕'
+    'change_direction': '🔄'
 }
 
 EMOJI = EMOJI_BLUE_THEME
