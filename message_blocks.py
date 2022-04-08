@@ -13,6 +13,8 @@ from data import (
     get_stop,
     get_stops_by_route,
     get_forecast_by_stop,
+    search_stop_groups_by_name,
+    get_stops_in_group,
 )
 
 
@@ -152,6 +154,7 @@ def make_paginator(
         cur_page=0,
         page_size=10,
         ) -> Tuple[str, InlineKeyboardMarkup]:
+    """:param items: Truple of option name and callback_data"""
     max_page_num = math.ceil(len(items) / page_size) - 1
     assert 0 <= cur_page
     assert cur_page <= max_page_num
@@ -365,8 +368,76 @@ class RouteMsgBlock(MsgBlock):
                 raise ValueError(f'Unknown command: {params[1]}')
 
 
+class SearchStopsMsgBlock(MsgBlock):
+    """Searching stops by name"""
+    def form_message(self, query: str) -> Tuple[str, InlineKeyboardMarkup]:
+        stop_groups = search_stop_groups_by_name(query)
+        self.message = 'Остановки по запросу ' + query + ':'
+        kbd = []    # type: List[List[InlineKeyboardButton]]
+        for stop_group_name in stop_groups:
+            btn_name = stop_group_name
+            stop_ex_id = get_stops_in_group(stop_group_name)[0]
+            btn_cb_data = f'SearchStopsMsgBlock stop_group {stop_ex_id}'
+            logger.info('Button ' + btn_name + ' | ' + btn_cb_data)
+            kbd.append([InlineKeyboardButton(
+                btn_name,
+                callback_data=btn_cb_data
+            )])
+        self.kbd = InlineKeyboardMarkup(kbd)
+        return self.message, self.kbd
+
+    def form_stop_group_message(
+                self,
+                stop_ex_id: int) -> Tuple[str, InlineKeyboardMarkup]:
+        stop_group_name = get_stop(stop_ex_id).stop_name.lower()
+        stops = get_stops_in_group(stop_group_name)
+        options = []
+        for i in stops:
+            s = get_stop(i)
+            options.append((
+                TRANSPORT_TYPE_EMOJI[s.transport_type] + s.stop_name,
+                f'BusStopMsgBlock appear_here {i}'
+            ))
+        return make_paginator(
+            options,
+            title="Какая остановка Вам нужна?",
+            previous_page_cmd='common pass',
+            next_page_cmd='common pass')
+
+    def send_new_message(
+                    self,
+                    update: Update,
+                    context: CallbackContext) -> None:
+        logger.info(f'send new message by {self}')
+        assert update.message is not None
+        assert update.message.text is not None
+        self.message, self.kbd = self.form_message(update.message.text)
+        super().send_new_message(update, context)
+
+    def callback_handler(
+                self,
+                update: Update,
+                context: CallbackContext) -> None:
+        logger.info(f'callback processing by {self}')
+        assert update.callback_query is not None
+        assert update.callback_query.data is not None
+        params = update.callback_query.data.split()
+        if params[0] == 'SearchStopsMsgBlock':
+            if params[1] == 'stop_group':
+                logger.info('callback: Search stop: stop group block appears')
+                logger.info(f'stop group name: {params[2]}')
+                assert update.callback_query.message is not None
+                msg, kbd = self.form_stop_group_message(int(params[2]))
+                update.callback_query.message.edit_text(
+                    msg, parse_mode='markdown', reply_markup=kbd)
+                update.callback_query.answer()
+            else:
+                raise ValueError(f'Unknown command: {params[1]}')
+
+
 stop_msgblock = BusStopMsgBlock()
 test_block = MsgBlock()
 nearest_stops_msgblock = NearestStopsMsgBlock()
 route_msgblock = RouteMsgBlock()
 start_msg_msgblock = StartMsgBlock()
+search_stop_msgblock = SearchStopsMsgBlock()

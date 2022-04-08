@@ -5,10 +5,12 @@ from random import choice
 import zipfile
 import requests
 import os
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from rtree import index as rtree_index  # type: ignore
+from fuzzywuzzy import process
+from fuzzywuzzy import fuzz
 
 
 logger = logging.getLogger(__name__)
@@ -183,6 +185,33 @@ Portal/transport/internalapi/forecast/bystop?stopID="+str(stopID)
         raise ValueError
     forecast_json = d.content
     return json.loads(forecast_json)
+
+
+def search_stop_groups_by_name(query: str, cutoff=0.5) -> List[str]:
+    """Searches in stop_names in lowercase, drops duplicates
+       :return: List of stop names in lowercase. Each stop name in
+       lowercase may correspond to different stop_name
+    """
+    assert _stop_df is not None
+    stop_names = _stop_df.stop_name.str.lower().unique()
+    result = process.extractBests(
+        query,
+        stop_names,
+        scorer=fuzz.token_sort_ratio,
+        limit=10
+    )
+    result = [i[0] for i in result if i[1] > cutoff]
+    return result
+
+
+def get_stops_in_group(stop_name) -> List[int]:
+    """
+    :param stop_name: stop name in lowercase
+    :return: list of stop_id
+    """
+    assert _stop_df is not None
+    res = _stop_df[_stop_df.stop_name.str.lower() == stop_name].stop_id
+    return list(res)
 
 
 _load_databases()
