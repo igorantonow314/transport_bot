@@ -15,6 +15,7 @@ from data import (
     get_forecast_by_stop,
     search_stop_groups_by_name,
     get_stops_in_group,
+    get_routes_by_stop,
 )
 
 
@@ -146,7 +147,7 @@ def make_keyboard(items, columns=5):
     if len(row) > 0:
         if len(keyboard) > 0:
             for i in range(5 - len(row)):
-                row.append(InlineKeyboardButton(' ', callback_data='/test'))
+                row.append(InlineKeyboardButton(' ', callback_data='common pass'))
     keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
@@ -223,21 +224,28 @@ class BusStopMsgBlock(MsgBlock):
         logger.info(f'form message by {self}')
         self.message, forecast_json = stop_info(stop_id)
         rl = [int(p['routeId']) for p in forecast_json['result']]
-        routes = set(rl)
+        routes = get_routes_by_stop(stop_id)
+        if not set(rl).issubset([i[0] for i in routes]):
+            logger.exception('Fantom bus!')
+            logger.warn(f'stop: {stop_id}')
+            logger.warn(f'routes: {routes}')
+            logger.warn(f'but here is {set(rl)}')
         s = []
-        for route_id in routes:
+        for route_id, direction in routes:
             s.append((
                 TRANSPORT_TYPE_EMOJI[get_route(route_id).transport_type]
                 + get_route(route_id).route_short_name,
 
-                'RouteMsgBlock appear_here ' + str(route_id) + ' '
-                + str(get_direction_by_stop(stop_id, route_id))
+                f'RouteMsgBlock appear_here {route_id} {direction}'
                 ))
         self.kbd = make_keyboard(s)
         self.kbd.inline_keyboard.append([
             InlineKeyboardButton(
                 'Обновить',
-                callback_data=f'BusStopMsgBlock refresh {stop_id}')
+                callback_data=f'BusStopMsgBlock refresh {stop_id}'),
+            InlineKeyboardButton(
+                'Похожие',
+                callback_data=f'SearchStopsMsgBlock stop_group {stop_id}')
             ])
         return self.message, self.kbd
 
@@ -383,7 +391,7 @@ class SearchStopsMsgBlock(MsgBlock):
             btn_name = stop_group_name
             stop_ex_id = get_stops_in_group(stop_group_name)[0]
             btn_cb_data = f'SearchStopsMsgBlock stop_group {stop_ex_id}'
-            logger.info('Button ' + btn_name + ' | ' + btn_cb_data)
+            logger.debug('Button ' + btn_name + ' | ' + btn_cb_data)
             kbd.append([InlineKeyboardButton(
                 btn_name,
                 callback_data=btn_cb_data
@@ -393,21 +401,25 @@ class SearchStopsMsgBlock(MsgBlock):
 
     def form_stop_group_message(
                 self,
-                stop_ex_id: int) -> Tuple[str, InlineKeyboardMarkup]:
+                stop_ex_id: int,
+                page_num: int=0) -> Tuple[str, InlineKeyboardMarkup]:
         stop_group_name = get_stop(stop_ex_id).stop_name.lower()
         stops = get_stops_in_group(stop_group_name)
         options = []
         for i in stops:
             s = get_stop(i)
+            l = TRANSPORT_TYPE_EMOJI[s.transport_type] + '*' + s.stop_name + '*\n'
+            l += ', '.join([get_route(r).route_short_name for r, d in get_routes_by_stop(i)])
             options.append((
-                TRANSPORT_TYPE_EMOJI[s.transport_type] + s.stop_name,
+                l,
                 f'BusStopMsgBlock appear_here {i}'
             ))
         return make_paginator(
             options,
             title="Какая остановка Вам нужна?",
-            previous_page_cmd='common pass',
-            next_page_cmd='common pass')
+            previous_page_cmd=f'SearchStopsMsgBlock stop_group {stop_ex_id} {page_num-1}',
+            next_page_cmd=f'SearchStopsMsgBlock stop_group {stop_ex_id} {page_num+1}',
+            cur_page=page_num)
 
     def send_new_message(
                     self,
@@ -427,12 +439,17 @@ class SearchStopsMsgBlock(MsgBlock):
         assert update.callback_query is not None
         assert update.callback_query.data is not None
         params = update.callback_query.data.split()
+
         if params[0] == 'SearchStopsMsgBlock':
             if params[1] == 'stop_group':
                 logger.info('callback: Search stop: stop group block appears')
-                logger.info(f'stop group name: {params[2]}')
+                logger.debug(f'stop group stop_id: {params[2]}')
                 assert update.callback_query.message is not None
-                msg, kbd = self.form_stop_group_message(int(params[2]))
+
+                if len(params) == 3:
+                    msg, kbd = self.form_stop_group_message(int(params[2]))
+                else:
+                    msg, kbd = self.form_stop_group_message(int(params[2]), int(params[3]))
                 update.callback_query.message.edit_text(
                     msg, parse_mode='markdown', reply_markup=kbd)
                 update.callback_query.answer()

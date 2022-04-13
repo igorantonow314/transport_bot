@@ -5,7 +5,7 @@ from random import choice
 import zipfile
 import requests
 import os
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import logging
 
 from rtree import index as rtree_index  # type: ignore
@@ -79,7 +79,8 @@ def get_route(route_id: int) -> pd.Series:
     assert _route_df is not None
     r = _route_df[_route_df.route_id == route_id]
     if len(r) == 0:
-        raise ValueError(f'Cannot find routes with id {route_id}')
+        raise ValueError(f'''Cannot find routes with id {route_id},
+            maybe your databases (feed) are outdated?''')
     return r.iloc[0]
 
 
@@ -204,7 +205,7 @@ def search_stop_groups_by_name(query: str, cutoff=0.5) -> List[str]:
     return result
 
 
-def get_stops_in_group(stop_name) -> List[int]:
+def get_stops_in_group(stop_name: str) -> List[int]:
     """
     :param stop_name: stop name in lowercase
     :return: list of stop_id
@@ -212,6 +213,27 @@ def get_stops_in_group(stop_name) -> List[int]:
     assert _stop_df is not None
     res = _stop_df[_stop_df.stop_name.str.lower() == stop_name].stop_id
     return list(res)
+
+
+def get_routes_by_stop(stop_id: int) -> List[Tuple[int, int]]:
+    """
+    :return: list of (route_id, direction_id)
+    """
+    assert _stop_times_df is not None
+    assert _trips_df is not None
+    # stop_id -> list(trip_id)
+    t_trips = (_stop_times_df[_stop_times_df.stop_id == stop_id]
+               .trip_id.unique()
+               )
+    # list(trip_id) -> DataFrame((route_id, direction_id))
+    t = (
+           _trips_df[_trips_df.trip_id.isin(t_trips)]
+           [['route_id', 'direction_id']]
+           .drop_duplicates()
+           )
+    # DataFrame((route_id, direction_id)) -> list(tuple(route_id, direction))
+    ret = [(i[1].route_id, i[1].direction_id) for i in t.iterrows()]
+    return ret
 
 
 _load_databases()
