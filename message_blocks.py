@@ -390,7 +390,7 @@ class SearchStopsMsgBlock(MsgBlock):
         for stop_group_name in stop_groups:
             btn_name = stop_group_name
             stop_ex_id = get_stops_in_group(stop_group_name)[0]
-            btn_cb_data = f'SearchStopsMsgBlock stop_group {stop_ex_id}'
+            btn_cb_data = f'SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}'
             logger.debug('Button ' + btn_name + ' | ' + btn_cb_data)
             kbd.append([InlineKeyboardButton(
                 btn_name,
@@ -451,6 +451,18 @@ class SearchStopsMsgBlock(MsgBlock):
                 else:
                     msg, kbd = self.form_stop_group_message(int(params[2]), int(params[3]))
                 update.callback_query.message.edit_text(
+                    msg, parse_mode='markdown', reply_markup=kbd)
+                update.callback_query.answer()
+            if params[1] == 'stop_group_newmsg':
+                logger.info('callback: Search stop: stop group block sending')
+                logger.debug(f'stop group stop_id: {params[2]}')
+                assert update.effective_chat is not None
+
+                if len(params) == 3:
+                    msg, kbd = self.form_stop_group_message(int(params[2]))
+                else:
+                    msg, kbd = self.form_stop_group_message(int(params[2]), int(params[3]))
+                update.effective_chat.send_message(
                     msg, parse_mode='markdown', reply_markup=kbd)
                 update.callback_query.answer()
             else:
