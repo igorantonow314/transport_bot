@@ -1,6 +1,11 @@
-from typing import Tuple, List, Optional
 import math
 import logging
+from typing import (
+    Tuple,
+    List,
+    Optional,
+    Any,
+)
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.update import Update
@@ -135,21 +140,26 @@ _Данные о транспорте получены благодаря:_
         self.kbd = InlineKeyboardMarkup([[]])
 
 
-def make_keyboard(items, columns=5):
+def make_keyboard(
+        items: List[Tuple[str, Any]],
+        columns: int = 5
+        ) -> InlineKeyboardMarkup:
+    if not columns > 0:
+        raise ValueError('number of columns must be > 0')
     keyboard = []
     row = []
     for it in items:
         row.append(InlineKeyboardButton(it[0], callback_data=it[1]))
-        if len(row) >= 5:
+        if len(row) >= columns:
             keyboard.append(row)
             row = []
     if len(row) > 0:
-        if len(keyboard) > 0:
-            for i in range(5 - len(row)):
+        if len(keyboard) > 1:
+            for i in range(columns - len(row)):
                 row.append(InlineKeyboardButton(' ',
                            callback_data='common pass')
                            )
-    keyboard.append(row)
+        keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
 
