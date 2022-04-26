@@ -14,6 +14,7 @@ from message_blocks import (
     nearest_stops_msgblock,
     route_msgblock,
     start_msg_msgblock,
+    search_stop_msgblock,
 )
 
 from bot_conf import BOT_TOKEN
@@ -72,6 +73,9 @@ def callback_handler(update: Update, context: CallbackContext) -> None:
     elif query_text.startswith('RouteMsgBlock'):
         logger.info('callback: RouteMsgBlock')
         route_msgblock.callback_handler(update, context)
+    elif query_text.startswith('SearchStopsMsgBlock'):
+        logger.info('callback: SearchStopsMsgBlock')
+        search_stop_msgblock.callback_handler(update, context)
     else:
         raise ValueError(f'Unknown callback: {query_text}')
 
@@ -94,6 +98,7 @@ def start_bot():
                        stop_msgblock.send_new_message),
         MessageHandler(Filters.regex('/route_([0-9])+_[0-1]'),
                        route_msgblock.send_new_message),
+        MessageHandler(Filters.all, search_stop_msgblock.send_new_message),
         CallbackQueryHandler(callback_handler),
         CommandHandler('test', test_block.send_new_message)
     ]

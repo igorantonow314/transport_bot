@@ -6,3 +6,4 @@ test:
 	mypy .
 	coverage run -m pytest
 	coverage report --omit="/usr/lib/*"
+	coverage html --omit="/usr/lib/*"

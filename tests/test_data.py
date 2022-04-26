@@ -3,6 +3,7 @@ from random import seed
 from data import (
     get_route,
     get_stop,
+    get_direction_by_stop,
     get_random_stop_id,
     geo_dist,
     get_nearest_stops,
@@ -15,6 +16,8 @@ def test_get_route():
     assert route.route_short_name == '100'
     assert route.transport_type == 'tram'
     assert route.route_long_name == "Ж.-д. станция Ручьи - Придорожная аллея"
+    with pytest.raises(ValueError):
+        get_route(12345)
 
 
 def test_get_stop():
@@ -24,6 +27,25 @@ def test_get_stop():
     assert stop.transport_type == 'bus'
     assert stop.stop_lat == 59.850751
     assert stop.stop_lon == 30.322769
+    with pytest.raises(ValueError):
+        get_stop(12345)
+
+
+def test_get_direction_by_stop():
+    # direction of bus 114 on stop 'СТ. МЕТРО "МОСКОВСКАЯ"'
+    d = get_direction_by_stop(2080, 1347)
+    assert type(d) is int
+    assert d == 0
+    # direction of tram 100 on stop "Пр. Культуры"
+    d = get_direction_by_stop(16769, 1128)
+    assert type(d) is int
+    assert d == 1
+    with pytest.raises(KeyError):
+        # direction of tram 100 on wrong stop
+        get_direction_by_stop(2080, 1128)
+    with pytest.raises(KeyError):
+        # direction of _tram_ 100 on _bus_ stop "ПР. КУЛЬТУРЫ"
+        get_direction_by_stop(4652, 1128)
 
 
 def test_get_random_stop_id():
