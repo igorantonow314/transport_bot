@@ -8,7 +8,6 @@ from telegram.ext.callbackcontext import CallbackContext
 
 from data import (
     get_route,
-    get_direction_by_stop,
     get_nearest_stops,
     get_stop,
     get_stops_by_route,
@@ -147,7 +146,9 @@ def make_keyboard(items, columns=5):
     if len(row) > 0:
         if len(keyboard) > 0:
             for i in range(5 - len(row)):
-                row.append(InlineKeyboardButton(' ', callback_data='common pass'))
+                row.append(InlineKeyboardButton(' ',
+                           callback_data='common pass')
+                           )
     keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
@@ -402,23 +403,30 @@ class SearchStopsMsgBlock(MsgBlock):
     def form_stop_group_message(
                 self,
                 stop_ex_id: int,
-                page_num: int=0) -> Tuple[str, InlineKeyboardMarkup]:
+                page_num: int = 0) -> Tuple[str, InlineKeyboardMarkup]:
         stop_group_name = get_stop(stop_ex_id).stop_name.lower()
         stops = get_stops_in_group(stop_group_name)
         options = []
         for i in stops:
             s = get_stop(i)
-            l = TRANSPORT_TYPE_EMOJI[s.transport_type] + '*' + s.stop_name + '*\n'
-            l += ', '.join([get_route(r).route_short_name for r, d in get_routes_by_stop(i)])
+            n = TRANSPORT_TYPE_EMOJI[s.transport_type]
+            n += '*' + s.stop_name + '*\n'
+            n += ', '.join([get_route(r).route_short_name
+                            for r, d in get_routes_by_stop(i)
+                            ])
             options.append((
-                l,
+                n,
                 f'BusStopMsgBlock appear_here {i}'
             ))
+
+        pt = "Какая остановка Вам нужна?"
+        ppc = f'SearchStopsMsgBlock stop_group {stop_ex_id} {page_num-1}'
+        npc = f'SearchStopsMsgBlock stop_group {stop_ex_id} {page_num+1}'
         return make_paginator(
             options,
-            title="Какая остановка Вам нужна?",
-            previous_page_cmd=f'SearchStopsMsgBlock stop_group {stop_ex_id} {page_num-1}',
-            next_page_cmd=f'SearchStopsMsgBlock stop_group {stop_ex_id} {page_num+1}',
+            title=pt,
+            previous_page_cmd=ppc,
+            next_page_cmd=npc,
             cur_page=page_num)
 
     def send_new_message(
@@ -441,30 +449,28 @@ class SearchStopsMsgBlock(MsgBlock):
         params = update.callback_query.data.split()
 
         if params[0] == 'SearchStopsMsgBlock':
-            if params[1] == 'stop_group':
-                logger.info('callback: Search stop: stop group block appears')
-                logger.debug(f'stop group stop_id: {params[2]}')
-                assert update.callback_query.message is not None
-
-                if len(params) == 3:
-                    msg, kbd = self.form_stop_group_message(int(params[2]))
-                else:
-                    msg, kbd = self.form_stop_group_message(int(params[2]), int(params[3]))
-                update.callback_query.message.edit_text(
-                    msg, parse_mode='markdown', reply_markup=kbd)
-                update.callback_query.answer()
-            if params[1] == 'stop_group_newmsg':
+            if params[1] == 'stop_group' or params[1] == 'stop_group_newmsg':
                 logger.info('callback: Search stop: stop group block sending')
                 logger.debug(f'stop group stop_id: {params[2]}')
-                assert update.effective_chat is not None
-
                 if len(params) == 3:
                     msg, kbd = self.form_stop_group_message(int(params[2]))
                 else:
-                    msg, kbd = self.form_stop_group_message(int(params[2]), int(params[3]))
-                update.effective_chat.send_message(
-                    msg, parse_mode='markdown', reply_markup=kbd)
+                    # there is page num
+                    pn = int(params[3])
+                    stop_ex_id = int(params[2])
+                    msg, kbd = self.form_stop_group_message(stop_ex_id, pn)
+
+                # sending new message or editing old
+                if params[1] == 'stop_group':
+                    assert update.callback_query.message is not None
+                    update.callback_query.message.edit_text(
+                        msg, parse_mode='markdown', reply_markup=kbd)
+                else:  # 'stop_group_newmsg'
+                    assert update.effective_chat is not None
+                    update.effective_chat.send_message(
+                        msg, parse_mode='markdown', reply_markup=kbd)
                 update.callback_query.answer()
+
             else:
                 raise ValueError(f'Unknown command: {params[1]}')
 

@@ -15,6 +15,8 @@ def test_get_route():
     assert route.route_short_name == '100'
     assert route.transport_type == 'tram'
     assert route.route_long_name == "Ж.-д. станция Ручьи - Придорожная аллея"
+    with pytest.raises(ValueError):
+        get_route(12345)
 
 
 def test_get_stop():
@@ -24,6 +26,8 @@ def test_get_stop():
     assert stop.transport_type == 'bus'
     assert stop.stop_lat == 59.850751
     assert stop.stop_lon == 30.322769
+    with pytest.raises(ValueError):
+        get_stop(12345)
 
 
 def test_get_random_stop_id():
