@@ -8,5 +8,5 @@ zipp
 Rtree
 pytest
 fuzzywuzzy
-fyzzywuzzy-stubs
+fuzzywuzzy-stubs
 coverage
