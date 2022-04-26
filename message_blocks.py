@@ -154,7 +154,7 @@ def make_keyboard(
             keyboard.append(row)
             row = []
     if len(row) > 0:
-        if len(keyboard) > 1:
+        if len(keyboard) > 0:
             for i in range(columns - len(row)):
                 row.append(InlineKeyboardButton(' ',
                            callback_data='common pass')
@@ -396,7 +396,7 @@ class SearchStopsMsgBlock(MsgBlock):
     """Searching stops by name"""
     def form_message(self, query: str) -> Tuple[str, InlineKeyboardMarkup]:
         stop_groups = search_stop_groups_by_name(query)
-        self.message = 'Остановки по запросу ' + query + ':'
+        self.message = 'Остановки по запросу "' + query + '":'
         kbd = []    # type: List[List[InlineKeyboardButton]]
         for stop_group_name in stop_groups:
             btn_name = stop_group_name
@@ -447,7 +447,8 @@ class SearchStopsMsgBlock(MsgBlock):
         assert update.message is not None
         assert update.message.text is not None
         self.message, self.kbd = self.form_message(update.message.text)
-        super().send_new_message(update, context)
+        update.message.reply_text(text=self.message,
+                                  reply_markup=self.kbd)
 
     def callback_handler(
                 self,
