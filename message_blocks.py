@@ -114,18 +114,17 @@ class MsgBlock:
                                  reply_markup=self.kbd)
 
 
-class StartMsgBlock(MsgBlock):
-    """Welcome message"""
-    def __init__(self):
-        super(MsgBlock, self).__init__()
-        self.message = '''Привет!
-Это бета версия бота. Это значит, что он активно разрабатывается\
- и развивается.
-Чтобы посмотреть время прибытия транспорта\
- к ближайшей остановке, в любое время пришли мне своё *местоположение*\
- (или не своё).\
- Также можно посмотреть время прибытия транспорта для случайной остановки: \
-/random\\_stop, а ещё -- маршрут транспорта, подходящего к данной остановке.
+start_msg_msgblock = MsgBlock()
+start_msg_msgblock.message = '''Привет!
+Этот бот покажет тебе время прибытия транспорта на любую остановку.
+
+🚩 отправь *местоположение*, чтобы найти ближайшие остановки
+
+🔎 чтобы *найти остановку по названию*, просто напиши название
+
+🚌 можно посмотреть маршрут транспорта, который подходит к остановке
+
+🎲 можно посмотреть случайную остановку: 👉 /random\\_stop
 
 _Данные о транспорте получены благодаря:_
 [Экосистеме городских сервисов «Цифровой Петербург»](https://petersburg.ru)
@@ -137,7 +136,10 @@ _Данные о транспорте получены благодаря:_
 Сообщайте обо всех багах, пишите любые предложения по изменению\
  дизайна, функционала и т.п.
 '''
-        self.kbd = InlineKeyboardMarkup([[]])
+start_msg_msgblock.kbd = InlineKeyboardMarkup([[
+    InlineKeyboardButton('Остановка "метро Невский проспект"',
+                         callback_data='BusStopMsgBlock newmsg 15495')
+    ]])
 
 
 def make_keyboard(
@@ -170,8 +172,12 @@ def make_paginator(
         title: Optional[str] = None,
         cur_page=0,
         page_size=10,
+        show_buttons=False,
         ) -> Tuple[str, InlineKeyboardMarkup]:
-    """:param items: Truple of option name and callback_data"""
+    """
+    :param items: Truple of option name and callback_data
+    :param show_buttons: show arrow buttons if all items is in one page
+    """
     max_page_num = math.ceil(len(items) / page_size) - 1
     assert 0 <= cur_page
     assert cur_page <= max_page_num
@@ -214,7 +220,8 @@ def make_paginator(
             EMOJI['forward'],
             callback_data=next_page_cmd
         ))
-    kbd.append(ctrls)
+    if max_page_num > 1 or show_buttons:
+        kbd.append(ctrls)
     return msg, InlineKeyboardMarkup(kbd)
 
 
@@ -284,6 +291,14 @@ class BusStopMsgBlock(MsgBlock):
             update.callback_query.message.edit_text(
                 msg, parse_mode='markdown', reply_markup=kbd)
             update.callback_query.answer()
+        if params[1] == 'newmsg':
+            logger.info('callback: new BusStop message')
+            assert get_stop(int(params[2])) is not None
+            assert update.callback_query.message is not None
+            msg, kbd = self.form_message(int(params[2]))
+            update.callback_query.message.reply_text(
+                msg, parse_mode='markdown', reply_markup=kbd)
+            update.callback_query.answer()
 
 
 class NearestStopsMsgBlock(MsgBlock):
@@ -293,14 +308,17 @@ class NearestStopsMsgBlock(MsgBlock):
                      longitude: float) -> Tuple[str, InlineKeyboardMarkup]:
         logger.info(f'form message by {self}')
         stops = get_nearest_stops(latitude, longitude, n=10)
-        msg = '*Ближайшие остановки:*\n'
+        title = '*Ближайшие остановки:*'
+        items = []     # type: List[Tuple[str, str]]
         for i in stops:
-            msg += (('/stop\\_'+str(i) + ": ").ljust(13)
-                    + TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
-                    + get_stop(i).stop_name
-                    )
-            msg += '\n'
-        return msg, InlineKeyboardMarkup([[]])
+            items.append((
+                TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
+                + get_stop(i).stop_name,
+                f'BusStopMsgBlock newmsg {i}'
+            ))
+        msg, kbd = make_paginator(items, "", "", title=title,
+                                  show_buttons=False)
+        return msg, kbd
 
     def send_new_message(self,
                          update: Update,
@@ -345,7 +363,8 @@ class RouteMsgBlock(MsgBlock):
             previous_page_cmd='RouteMsgBlock appear_here '
                               + f'{route_id} {direction} {page_num-1}',
             next_page_cmd='RouteMsgBlock appear_here '
-                          + f'{route_id} {direction} {page_num+1}'
+                          + f'{route_id} {direction} {page_num+1}',
+            show_buttons=True
             )
         msg += m
         msg += '_Сменить направление_: ' + EMOJI['change_direction']
@@ -396,18 +415,25 @@ class SearchStopsMsgBlock(MsgBlock):
     """Searching stops by name"""
     def form_message(self, query: str) -> Tuple[str, InlineKeyboardMarkup]:
         stop_groups = search_stop_groups_by_name(query)
-        self.message = 'Остановки по запросу "' + query + '":'
-        kbd = []    # type: List[List[InlineKeyboardButton]]
+        # formatting query into markdown
+        # (see https://core.telegram.org/bots/api#formatting-options)
+        fq = query
+        for c in '*_[`':
+            fq = fq.replace(c, '\\'+c)
+        title = 'Остановки по запросу "' + fq + '":'
+        items = []
         for stop_group_name in stop_groups:
-            btn_name = stop_group_name
             stop_ex_id = get_stops_in_group(stop_group_name)[0]
-            btn_cb_data = f'SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}'
-            logger.debug('Button ' + btn_name + ' | ' + btn_cb_data)
-            kbd.append([InlineKeyboardButton(
-                btn_name,
-                callback_data=btn_cb_data
-            )])
-        self.kbd = InlineKeyboardMarkup(kbd)
+            items.append((
+                stop_group_name,
+                f'SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}'
+            ))
+        self.message, self.kbd = make_paginator(
+            items,
+            " ", " ",
+            title=title,
+            page_size=10
+            )
         return self.message, self.kbd
 
     def form_stop_group_message(
@@ -448,7 +474,8 @@ class SearchStopsMsgBlock(MsgBlock):
         assert update.message.text is not None
         self.message, self.kbd = self.form_message(update.message.text)
         update.message.reply_text(text=self.message,
-                                  reply_markup=self.kbd)
+                                  reply_markup=self.kbd,
+                                  parse_mode='markdown')
 
     def callback_handler(
                 self,
@@ -490,5 +517,4 @@ stop_msgblock = BusStopMsgBlock()
 test_block = MsgBlock()
 nearest_stops_msgblock = NearestStopsMsgBlock()
 route_msgblock = RouteMsgBlock()
-start_msg_msgblock = StartMsgBlock()
 search_stop_msgblock = SearchStopsMsgBlock()
