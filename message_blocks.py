@@ -284,6 +284,14 @@ class BusStopMsgBlock(MsgBlock):
             update.callback_query.message.edit_text(
                 msg, parse_mode='markdown', reply_markup=kbd)
             update.callback_query.answer()
+        if params[1] == 'newmsg':
+            logger.info('callback: new BusStop message')
+            assert get_stop(int(params[2])) is not None
+            assert update.callback_query.message is not None
+            msg, kbd = self.form_message(int(params[2]))
+            update.callback_query.message.reply_text(
+                msg, parse_mode='markdown', reply_markup=kbd)
+            update.callback_query.answer()
 
 
 class NearestStopsMsgBlock(MsgBlock):
@@ -293,14 +301,16 @@ class NearestStopsMsgBlock(MsgBlock):
                      longitude: float) -> Tuple[str, InlineKeyboardMarkup]:
         logger.info(f'form message by {self}')
         stops = get_nearest_stops(latitude, longitude, n=10)
-        msg = '*Ближайшие остановки:*\n'
+        title = '*Ближайшие остановки:*'
+        items = []     # type: List[Tuple[str, str]]
         for i in stops:
-            msg += (('/stop\\_'+str(i) + ": ").ljust(13)
-                    + TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
-                    + get_stop(i).stop_name
-                    )
-            msg += '\n'
-        return msg, InlineKeyboardMarkup([[]])
+            items.append((
+                TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
+                + get_stop(i).stop_name,
+                f'BusStopMsgBlock newmsg {i}'
+            ))
+        msg, kbd = make_paginator(items, "", "", title=title)
+        return msg, kbd
 
     def send_new_message(self,
                          update: Update,
