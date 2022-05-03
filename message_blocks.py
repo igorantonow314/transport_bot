@@ -170,8 +170,12 @@ def make_paginator(
         title: Optional[str] = None,
         cur_page=0,
         page_size=10,
+        show_buttons=False,
         ) -> Tuple[str, InlineKeyboardMarkup]:
-    """:param items: Truple of option name and callback_data"""
+    """
+    :param items: Truple of option name and callback_data
+    :param show_buttons: show arrow buttons if all items is in one page
+    """
     max_page_num = math.ceil(len(items) / page_size) - 1
     assert 0 <= cur_page
     assert cur_page <= max_page_num
@@ -214,7 +218,8 @@ def make_paginator(
             EMOJI['forward'],
             callback_data=next_page_cmd
         ))
-    kbd.append(ctrls)
+    if max_page_num > 1 or show_buttons:
+        kbd.append(ctrls)
     return msg, InlineKeyboardMarkup(kbd)
 
 
@@ -309,7 +314,8 @@ class NearestStopsMsgBlock(MsgBlock):
                 + get_stop(i).stop_name,
                 f'BusStopMsgBlock newmsg {i}'
             ))
-        msg, kbd = make_paginator(items, "", "", title=title)
+        msg, kbd = make_paginator(items, "", "", title=title,
+                                  show_buttons=False)
         return msg, kbd
 
     def send_new_message(self,
@@ -355,7 +361,8 @@ class RouteMsgBlock(MsgBlock):
             previous_page_cmd='RouteMsgBlock appear_here '
                               + f'{route_id} {direction} {page_num-1}',
             next_page_cmd='RouteMsgBlock appear_here '
-                          + f'{route_id} {direction} {page_num+1}'
+                          + f'{route_id} {direction} {page_num+1}',
+            show_buttons=True
             )
         msg += m
         msg += '_Сменить направление_: ' + EMOJI['change_direction']
