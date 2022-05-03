@@ -413,18 +413,25 @@ class SearchStopsMsgBlock(MsgBlock):
     """Searching stops by name"""
     def form_message(self, query: str) -> Tuple[str, InlineKeyboardMarkup]:
         stop_groups = search_stop_groups_by_name(query)
-        self.message = 'Остановки по запросу "' + query + '":'
-        kbd = []    # type: List[List[InlineKeyboardButton]]
+        # formatting query into markdown
+        # (see https://core.telegram.org/bots/api#formatting-options)
+        fq = query
+        for c in '*_[`':
+            fq = fq.replace(c, '\\'+c)
+        title = 'Остановки по запросу "' + fq + '":'
+        items = []
         for stop_group_name in stop_groups:
-            btn_name = stop_group_name
             stop_ex_id = get_stops_in_group(stop_group_name)[0]
-            btn_cb_data = f'SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}'
-            logger.debug('Button ' + btn_name + ' | ' + btn_cb_data)
-            kbd.append([InlineKeyboardButton(
-                btn_name,
-                callback_data=btn_cb_data
-            )])
-        self.kbd = InlineKeyboardMarkup(kbd)
+            items.append((
+                stop_group_name,
+                f'SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}'
+            ))
+        self.message, self.kbd = make_paginator(
+            items,
+            " ", " ",
+            title=title,
+            page_size=10
+            )
         return self.message, self.kbd
 
     def form_stop_group_message(
@@ -465,7 +472,8 @@ class SearchStopsMsgBlock(MsgBlock):
         assert update.message.text is not None
         self.message, self.kbd = self.form_message(update.message.text)
         update.message.reply_text(text=self.message,
-                                  reply_markup=self.kbd)
+                                  reply_markup=self.kbd,
+                                  parse_mode='markdown')
 
     def callback_handler(
                 self,
