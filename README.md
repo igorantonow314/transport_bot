@@ -1,35 +1,37 @@
-# [@PiterBusBot](https://t.me/PiterBusBot)
+# @PiterBusBot
 
 Телеграм бот, позволяющий смотреть прогноз прибытия транспорта в Питере в режиме реального времени.
 
-Попробовать: [@PiterBusBot](https://t.me/PiterBusBot)
+Попробовать: 👉 [@PiterBusBot](https://t.me/PiterBusBot)
 
 
 ## Установка
-Должен быть установлен `python 3.7+`.
+Должен быть установлен `python 3.6+`
 
 ```bash
-$ git clone https://github.com/igorantonow314/transport_bot
-$ cd transport_bot
-$ make install
+git clone https://github.com/igorantonow314/transport_bot
+cd transport_bot
+make install
 ```
 Опционально:
 установить libspatialindex-dev для ускорения поиска ближайших остановок (для rtree, см. https://github.com/Toblerity/rtree/issues/64)
 ```bash
-$ sudo apt install libspatialindex-dev python-rtree
+sudo apt install libspatialindex-dev python-rtree
 ```
 
 ## Запуск
 ```bash
-$ cd transport_bot
-$ python __main__.py
+cd transport_bot
+python __main__.py
 ```
 
 Логи по-умолчанию записываются в `bot.log`.
 
-## Источники
+## Источники и условия использования
 
 _Данные о транспорте получены благодаря:_
  [Экосистеме городских сервисов «Цифровой Петербург»](https://petersburg.ru),
  [Порталу общественного транспорта
 Санкт-Петербурга](https://transport.orgp.spb.ru)
+
+Для использования необходимо прочитать [условия](https://transport.orgp.spb.ru/Portal/transport/userAgreementApi) и подать заявку. 
