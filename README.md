@@ -4,8 +4,11 @@
 
 Попробовать: 👉 [@PiterBusBot](https://t.me/PiterBusBot)
 
-![screenshot](./screenshots/stop_and_searching.jpg)
-
+<div align="center">
+	<img src="./screenshots/send_location.jpg" width="32%" alt="startup" />
+	<img src="./screenshots/show_route.jpg" width="32%" alt="startup" />
+	<img src="./screenshots/stop_and_searching.jpg" width="32%" alt="startup" />
+</div>
 
 ## Установка
 Должен быть установлен `python 3.6+`
