@@ -4,6 +4,8 @@
 
 Попробовать: 👉 [@PiterBusBot](https://t.me/PiterBusBot)
 
+![screenshot](./screenshots/stop_and_searching.jpg)
+
 
 ## Установка
 Должен быть установлен `python 3.6+`
