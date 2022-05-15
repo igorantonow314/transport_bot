@@ -6,6 +6,10 @@ from aiogram import (
     executor,
     types,
 )
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
 
 from bot_conf import BOT_TOKEN
 
@@ -17,23 +21,35 @@ dp = Dispatcher(bot)
 
 @dp.message_handler(commands=['start', 'help'])
 async def start_message(message: types.Message):
-    button = types.InlineKeyboardButton('test', callback_data='test data')
-    b2 = types.InlineKeyboardButton('t2', callback_data='t2')
-    ikm = types.InlineKeyboardMarkup(row_width=1,
-                                     inline_keyboard=[[button, b2]])
-    await message.reply('hi', reply_markup=ikm)
+    text = '''Привет!
+Этот бот покажет тебе время прибытия транспорта на любую остановку.
 
+🚩 отправь *местоположение*, чтобы найти ближайшие остановки
 
-@dp.callback_query_handler(lambda x: x.data.startswith('test'))
-async def callback_handler(call: types.CallbackQuery):
-    await call.message.edit_text(call.data)
-    await start_message(call.message)
-    await call.answer()
+🔎 чтобы *найти остановку по названию*, просто напиши название
 
+🚌 можно посмотреть маршрут транспорта, который подходит к остановке
 
-@dp.callback_query_handler(lambda x: True)
-async def log_callback(call: types.CallbackQuery):
-    await call.message.reply(f'requested callback with data: {call.data}')
+🎲 можно посмотреть случайную остановку: 👉 /random\\_stop
+
+_Данные о транспорте получены благодаря:_
+[Экосистеме городских сервисов «Цифровой Петербург»](https://petersburg.ru)
+[Порталу общественного транспорта\
+ Санкт-Петербурга](https://transport.orgp.spb.ru)
+
+**Контакты:**
+@igorantonow
+Сообщайте обо всех багах, пишите любые предложения по изменению\
+ дизайна, функционала и т.п.
+'''
+    kbd = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton('Остановка "метро Невский проспект"',
+                             callback_data='BusStopMsgBlock newmsg 15495')
+    ]])
+    await message.answer(
+        text,
+        reply_markup=kbd,
+        parse_mode='markdown')
 
 
 def start_bot():
