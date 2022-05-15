@@ -1,12 +1,1 @@
-coverage==6.3.2
-flake8==4.0.1
-fuzzywuzzy==0.18.0
-fuzzywuzzy-stubs==0.0.1
-mypy==0.942
-pandas==1.4.1
-pandas-stubs==1.2.0.54
-pytest==7.1.1
-python-telegram-bot==13.11
-requests==2.27.1
-Rtree==0.9.7
-zipp==3.7.0
+aiogram==2.20
