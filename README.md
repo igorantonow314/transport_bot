@@ -11,17 +11,12 @@
 </div>
 
 ## Установка
-Должен быть установлен `python 3.6+`
+Должен быть установлен `python 3.7+`
 
 ```bash
 git clone https://github.com/igorantonow314/transport_bot
 cd transport_bot
 make install
-```
-Опционально:
-установить libspatialindex-dev для ускорения поиска ближайших остановок (для rtree, см. https://github.com/Toblerity/rtree/issues/64)
-```bash
-sudo apt install libspatialindex-dev python-rtree
 ```
 
 ## Запуск

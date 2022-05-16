@@ -1,2 +1,0 @@
-libspatialindex-dev
-# optional, needs for python-rtree, see https://github.com/Toblerity/rtree/issues/64
