@@ -12,6 +12,7 @@ from aiogram import (
     Dispatcher,
     executor,
     types,
+    filters
 )
 
 from aiogram.types import (
@@ -258,7 +259,16 @@ async def bus_stop_cb_handler(callback: types.CallbackQuery):
             await callback.message.reply(
                 msg, parse_mode='markdown', reply_markup=kbd)
         await callback.answer()
-        
+
+
+@dp.message_handler(
+    filters.RegexpCommandsFilter(regexp_commands=['stop_([0-9]+)']))
+async def stop_command_handler(message: types.Message):
+    assert message.text.startswith('/stop_')
+    stop_id = int(message.text.replace('/stop_', ''))
+    msg, ikm = stop_info_message(stop_id)
+    await message.reply(msg, reply_markup=ikm, parse_mode='markdown')
+
 
 def start_bot():
     executor.start_polling(dp, skip_updates=True)
