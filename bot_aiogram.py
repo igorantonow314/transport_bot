@@ -5,6 +5,7 @@ from typing import (
     Tuple,
     Any,
     Optional,
+    Dict,
 )
 
 from aiogram import Bot, Dispatcher, executor, types, filters
@@ -186,7 +187,13 @@ def stop_info(stop_id):
     return msg, forecast_json
 
 
-def stop_info_message(stop_id) -> Tuple[str, InlineKeyboardMarkup]:
+def stop_info_message(stop_id) -> Dict[str, Any]:
+    """Forms message to send about stop forecast.
+
+    Example:
+        my_message.answer(**stop_info_message(2080))
+
+    :return: kwargs to bot.send_message() or types.Message().answer(), etc"""
     logger.info("form stop info message")
     message, forecast_json = stop_info(stop_id)
     rl = [int(p["routeId"]) for p in forecast_json["result"]]
@@ -216,7 +223,7 @@ def stop_info_message(stop_id) -> Tuple[str, InlineKeyboardMarkup]:
             ),
         ]
     )
-    return message, kbd
+    return {"text": message, "reply_markup": kbd, "parse_mode": "markdown"}
 
 
 @dp.callback_query_handler(lambda x: x.data.startswith("BusStopMsgBlock"))
@@ -232,22 +239,35 @@ async def bus_stop_cb_handler(callback: types.CallbackQuery):
         logger.info("callback: BusStop message")
         assert get_stop(int(params[2])) is not None
         assert callback.message is not None
-        msg, kbd = stop_info_message(int(params[2]))
         if params[1] == "appear_here":
-            await callback.message.edit_text(
-                msg, parse_mode="markdown", reply_markup=kbd
-            )
+            await callback.message.edit_text(**stop_info_message(int(params[2])))
         else:
-            await callback.message.reply(msg, parse_mode="markdown", reply_markup=kbd)
+            await callback.message.reply(**stop_info_message(int(params[2])))
         await callback.answer()
 
 
 @dp.message_handler(filters.RegexpCommandsFilter(regexp_commands=["stop_([0-9]+)"]))
 async def stop_command_handler(message: types.Message):
+    """Handles commands like /stop_12345, where 12345 is stop_id."""
     assert message.text.startswith("/stop_")
     stop_id = int(message.text.replace("/stop_", ""))
-    msg, ikm = stop_info_message(stop_id)
-    await message.reply(msg, reply_markup=ikm, parse_mode="markdown")
+    await message.reply(**stop_info_message(stop_id))
+
+
+def nearest_stops_message(lat: float, lon: float) -> Dict[str, Any]:
+    """Forms message to send about nearest stops.
+
+    Example:
+        my_message.answer(**nearest_stops_message(30.0, 60.0))
+
+    :return: kwargs to bot.send_message() or types.Message().answer(), etc"""
+    return {"text": "this feature isn't released yet"}
+
+
+@dp.message_handler(commands=["test_location"])
+async def nearest_stops_message_handler(message: types.Message):
+    m = nearest_stops_message(30, 60)
+    await message.reply(**m)
 
 
 def start_bot():
