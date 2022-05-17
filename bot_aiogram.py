@@ -246,23 +246,19 @@ async def bus_stop_cb_handler(callback: types.CallbackQuery):
         msg = 'Обновление...'
         await callback.message.edit_text(msg)
         params[1] = 'appear_here'
-    if params[1] == 'appear_here':
-        logger.info('callback: appear BusStop message')
+    if params[1] in ('appear_here', 'newmsg'):
+        logger.info('callback: BusStop message')
         assert get_stop(int(params[2])) is not None
         assert callback.message is not None
         msg, kbd = stop_info_message(int(params[2]))
-        await callback.message.edit_text(
-            msg, parse_mode='markdown', reply_markup=kbd)
+        if params[1] == 'appear_here':
+            await callback.message.edit_text(
+                msg, parse_mode='markdown', reply_markup=kbd)
+        else:
+            await callback.message.reply(
+                msg, parse_mode='markdown', reply_markup=kbd)
         await callback.answer()
-    if params[1] == 'newmsg':
-        logger.info('callback: new BusStop message')
-        assert get_stop(int(params[2])) is not None
-        assert callback.message is not None
-        msg, kbd = stop_info_message(int(params[2]))
-        await callback.message.reply(
-            msg, parse_mode='markdown', reply_markup=kbd)
-        await callback.answer()
-
+        
 
 def start_bot():
     executor.start_polling(dp, skip_updates=True)
