@@ -18,6 +18,7 @@ from data import (
     get_forecast_by_stop,
     get_routes_by_stop,
     get_nearest_stops,
+    get_stops_by_route,
 )
 from bot_conf import BOT_TOKEN
 
@@ -76,10 +77,10 @@ _Данные о транспорте получены благодаря:_
             ],
             [
                 InlineKeyboardButton(
-                    "Пример ближайших остановок",
+                    'Пример ближайших остановок',
                     callback_data="NearestStops example 59.928048 30.348679",
                 )
-            ],
+            ]
         ]
     )
     await message.answer(text, reply_markup=kbd, parse_mode="markdown")
@@ -112,11 +113,11 @@ def make_paginator(
     title: Optional[str] = None,
     cur_page=0,
     page_size=10,
-    show_buttons=False,
+    always_show_buttons=False,
 ) -> Tuple[str, InlineKeyboardMarkup]:
     """
     :param items: Truple of option name and callback_data
-    :param show_buttons: show arrow buttons if all items is in one page
+    :param always_show_buttons: show arrow buttons even if all items is in one page
     """
     max_page_num = math.ceil(len(items) / page_size) - 1
     assert 0 <= cur_page
@@ -147,7 +148,7 @@ def make_paginator(
         ctrls.append(
             InlineKeyboardButton(EMOJI["forward"], callback_data=next_page_cmd)
         )
-    if max_page_num > 1 or show_buttons:
+    if max_page_num > 1 or always_show_buttons:
         kbd.append(ctrls)
     return msg, InlineKeyboardMarkup(inline_keyboard=kbd)
 
@@ -281,8 +282,8 @@ def nearest_stops_message(latitude: float, longitude: float, n=10) -> Dict[str, 
                 f"BusStopMsgBlock newmsg {i}",
             )
         )
-    msg, kbd = make_paginator(items, "", "", title=title, show_buttons=False)
-    return {"text": msg, "reply_markup": kbd, "parse_mode": "markdown"}
+    msg, kbd = make_paginator(items, "", "", title=title, always_show_buttons=False)
+    return {"text": msg, 'reply_markup': kbd, 'parse_mode': 'markdown'}
 
 
 @dp.message_handler(commands=["test_location"])
@@ -298,7 +299,7 @@ async def nearest_stops_message_handler(message: types.Message):
     await message.reply(**nearest_stops_message(lat, lon))
 
 
-@dp.callback_query_handler(lambda x: x.data.startswith("NearestStops"))
+@dp.callback_query_handler(lambda x: x.data.startswith('NearestStops'))
 async def nearest_stops_callback_handler(callback: types.CallbackQuery):
     params = callback.data.split()
     assert params[0] == "NearestStops"
@@ -311,6 +312,65 @@ async def nearest_stops_callback_handler(callback: types.CallbackQuery):
         lat = float(params[2])
         lon = float(params[3])
         await callback.message.answer(**nearest_stops_message(lat, lon))
+        await callback.answer()
+
+
+def route_message(route_id: int, direction: int, page_num: Optional[int] = None
+) -> Dict[str, Any]:
+    logger.info(f"form route message")
+    if not page_num:
+        page_num = 0
+    route = get_route(route_id)
+    msg = ""
+    msg += "*" + TRANSPORT_TYPE_EMOJI[route.transport_type]
+    msg += route.route_short_name
+    msg += "*\n"
+    msg += "*" + get_route(route_id).route_long_name + "*\n"
+    msg += ("_Обратное" if direction else "_Прямое") + " направление_\n"
+    msg += "\n"
+    stops = get_stops_by_route(route_id, direction)
+    options = []
+    for s in stops:
+        options.append(
+            (get_stop(s).stop_name, "BusStopMsgBlock appear_here " + str(s))
+        )
+    m, kbd = make_paginator(
+        options,
+        cur_page=page_num,
+        previous_page_cmd="RouteMsgBlock appear_here "
+        + f"{route_id} {direction} {page_num-1}",
+        next_page_cmd="RouteMsgBlock appear_here "
+        + f"{route_id} {direction} {page_num+1}",
+        always_show_buttons=True,
+    )
+    msg += m
+    msg += "_Сменить направление_: " + EMOJI["change_direction"]
+    kbd.inline_keyboard[-1].insert(
+        -1,
+        InlineKeyboardButton(
+            EMOJI["change_direction"],
+            callback_data="RouteMsgBlock appear_here "
+            + f"{route_id} {1-direction} 0",
+        ),
+    )
+    return {"text": msg, "reply_markup": kbd, "parse_mode": "markdown"}
+
+
+@dp.callback_query_handler(lambda x: x.data.startswith('RouteMsgBlock'))
+async def route_callback_handler(callback: types.CallbackQuery):
+    params = callback.data.split()
+    assert params[0] == "RouteMsgBlock"
+    if params[1] in ["appear_here", "newmsg"]:
+        r = int(params[2])
+        d = int(params[3])
+        if len(params) >= 5:
+            page_num = int(params[4])
+        else:
+            page_num = None
+        if params[1] == "appear_here":
+            await callback.message.edit_text(**route_message(r, d, page_num))
+        else:
+            await callback.message.answer(**route_message(r, d, page_num))
         await callback.answer()
 
 
