@@ -12,7 +12,7 @@ lint:
 	black .
 	mypy .
 
-run: lint test
+run: lint
 	echo
 	echo ================ RUN ==============
 	python .

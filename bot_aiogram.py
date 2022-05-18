@@ -6,6 +6,7 @@ from typing import (
     Any,
     Optional,
     Dict,
+    Union,
 )
 
 from aiogram import Bot, Dispatcher, executor, types, filters
@@ -21,6 +22,7 @@ from data import (
     get_stops_by_route,
     get_stops_in_group,
     search_stop_groups_by_name,
+    get_random_stop_id,
 )
 from bot_conf import BOT_TOKEN
 
@@ -81,6 +83,12 @@ _Данные о транспорте получены благодаря:_
                 InlineKeyboardButton(
                     'Пример ближайших остановок',
                     callback_data="NearestStops example 59.928048 30.348679",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                "🎲Случайная остановка",
+                callback_data="random_stop"
                 )
             ]
         ]
@@ -265,6 +273,36 @@ async def stop_command_handler(message: types.Message):
     assert message.text.startswith("/stop_")
     stop_id = int(message.text.replace("/stop_", ""))
     await message.reply(**stop_info_message(stop_id))
+
+
+@dp.message_handler(commands=["nevskii"])
+async def nevskii_command_handler(message: types.Message):
+    """
+    Forecast for stop "metro Nevskii prospect"
+    """
+    logger.info("/nevskii command handler")
+    await message.reply(**stop_info_message(15495))
+
+
+@dp.message_handler(commands=["random_stop"])
+@dp.callback_query_handler(lambda x: x.data == "random_stop")
+async def random_stop_command_handler(x: Union[types.Message, types.CallbackQuery]):
+    """
+    Forecast for random stop
+    """
+    logger.info("/nevskii command handler")
+    m = stop_info_message(get_random_stop_id())
+    m['reply_markup'].inline_keyboard[-1].append(
+        types.InlineKeyboardButton(
+            "🎲Случайная",
+            callback_data="random_stop"
+            )
+        )
+    if isinstance(x, types.CallbackQuery):
+        await x.message.answer(**m)
+        await x.answer()
+    else:
+        await x.reply(**m)
 
 
 def nearest_stops_message(latitude: float, longitude: float, n=10) -> Dict[str, Any]:
@@ -454,9 +492,28 @@ async def search_stop_callback_handler(callback: types.CallbackQuery):
 
         if params[1] == "stop_group":
             await callback.message.edit_text(**msg)
-        else:  # 'stop_group_newmsg'
+        else:  # stop_group_newmsg
             await callback.message.reply(**msg)
         await callback.answer()
+
+
+@dp.callback_query_handler()
+async def callback_handler(callback: types.CallbackQuery) -> None:
+    logger.info("callback recieved")
+    
+    if callback.data.startswith("common"):
+        if callback.data == "common delete_me":
+            logger.info("callback: common delete_me")
+            assert callback.message is not None
+            await callback.message.delete()
+            await callback.answer()
+        elif callback.data == "common pass":
+            logger.info("callback: pass")
+            await callback.answer()
+        else:
+            raise ValueError(f"Unknown callback: {callback.data}")
+    else:
+        raise ValueError(f"Unknown callback: {callback.data}")
 
 
 def start_bot():
