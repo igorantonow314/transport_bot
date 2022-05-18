@@ -10,13 +10,14 @@ from typing import (
 
 from aiogram import Bot, Dispatcher, executor, types, filters
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ContentTypes
 
 from data import (
     get_route,
     get_stop,
     get_forecast_by_stop,
     get_routes_by_stop,
+    get_nearest_stops,
 )
 from bot_conf import BOT_TOKEN
 
@@ -72,7 +73,13 @@ _Данные о транспорте получены благодаря:_
                     'Остановка "метро Невский проспект"',
                     callback_data="BusStopMsgBlock newmsg 15495",
                 )
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    "Пример ближайших остановок",
+                    callback_data="NearestStops example 59.928048 30.348679",
+                )
+            ],
         ]
     )
     await message.answer(text, reply_markup=kbd, parse_mode="markdown")
@@ -254,20 +261,57 @@ async def stop_command_handler(message: types.Message):
     await message.reply(**stop_info_message(stop_id))
 
 
-def nearest_stops_message(lat: float, lon: float) -> Dict[str, Any]:
+def nearest_stops_message(latitude: float, longitude: float, n=10) -> Dict[str, Any]:
     """Forms message to send about nearest stops.
 
     Example:
-        my_message.answer(**nearest_stops_message(30.0, 60.0))
+        my_message.answer(**nearest_stops_message(60.0, 30.0))
 
+    :arg n: number of shown stops (not tested)
     :return: kwargs to bot.send_message() or types.Message().answer(), etc"""
-    return {"text": "this feature isn't released yet"}
+    logger.info(f"form nearest_stops message")
+    stops = get_nearest_stops(latitude, longitude, n=n)
+    title = "*Ближайшие остановки:*"
+    items = []  # type: List[Tuple[str, str]]
+    for i in stops:
+        items.append(
+            (
+                TRANSPORT_TYPE_EMOJI[get_stop(i).transport_type]
+                + get_stop(i).stop_name,
+                f"BusStopMsgBlock newmsg {i}",
+            )
+        )
+    msg, kbd = make_paginator(items, "", "", title=title, show_buttons=False)
+    return {"text": msg, "reply_markup": kbd, "parse_mode": "markdown"}
 
 
 @dp.message_handler(commands=["test_location"])
-async def nearest_stops_message_handler(message: types.Message):
-    m = nearest_stops_message(30, 60)
+async def nearest_stops_test_message_handler(message: types.Message):
+    m = nearest_stops_message(60, 30)
     await message.reply(**m)
+
+
+@dp.message_handler(content_types=ContentTypes.LOCATION)
+async def nearest_stops_message_handler(message: types.Message):
+    lat = message.location.latitude
+    lon = message.location.longitude
+    await message.reply(**nearest_stops_message(lat, lon))
+
+
+@dp.callback_query_handler(lambda x: x.data.startswith("NearestStops"))
+async def nearest_stops_callback_handler(callback: types.CallbackQuery):
+    params = callback.data.split()
+    assert params[0] == "NearestStops"
+    if params[1] == "example":
+        lat = float(params[2])
+        lon = float(params[3])
+        await callback.message.answer_location(lat, lon)
+        params[1] = "msg"
+    if params[1] == "msg":
+        lat = float(params[2])
+        lon = float(params[3])
+        await callback.message.answer(**nearest_stops_message(lat, lon))
+        await callback.answer()
 
 
 def start_bot():
