@@ -19,6 +19,8 @@ from data import (
     get_routes_by_stop,
     get_nearest_stops,
     get_stops_by_route,
+    get_stops_in_group,
+    search_stop_groups_by_name,
 )
 from bot_conf import BOT_TOKEN
 
@@ -119,7 +121,10 @@ def make_paginator(
     :param items: Truple of option name and callback_data
     :param always_show_buttons: show arrow buttons even if all items is in one page
     """
+    assert len(items) > 0
     max_page_num = math.ceil(len(items) / page_size) - 1
+    # num of pages must be >= len(items) / page_size
+    # numeration starts from 0
     assert 0 <= cur_page
     assert cur_page <= max_page_num
     msg = ""
@@ -371,6 +376,86 @@ async def route_callback_handler(callback: types.CallbackQuery):
             await callback.message.edit_text(**route_message(r, d, page_num))
         else:
             await callback.message.answer(**route_message(r, d, page_num))
+        await callback.answer()
+
+
+def search_stop_by_name_message(query: str) -> Dict[str, Any]:
+    stop_groups = search_stop_groups_by_name(query)
+    # formatting query into markdown
+    # (see https://core.telegram.org/bots/api#formatting-options)
+    fq = query
+    for c in "*_[`":
+        fq = fq.replace(c, "\\" + c)
+
+    if len(stop_groups) == 0:
+        return {"text": f"**Остановок по запросу** '{fq}' **не найдено** :-(",
+                "parse_mode": "markdown"}
+    title = 'Остановки по запросу "' + fq + '":'
+    items = []
+    for stop_group_name in stop_groups:
+        stop_ex_id = get_stops_in_group(stop_group_name)[0]
+        items.append(
+            (stop_group_name, f"SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}")
+        )
+    message, kbd = make_paginator(
+        items, " ", " ", title=title, page_size=10
+    )
+    return {"text": message, "reply_markup": kbd, "parse_mode": "markdown"}
+
+
+def stop_group_message(
+        stop_ex_id: int, page_num: int = 0
+    ) -> Dict[str, Any]:
+    stop_group_name = get_stop(stop_ex_id).stop_name.lower()
+    stops = get_stops_in_group(stop_group_name)
+    options = []
+    for i in stops:
+        s = get_stop(i)
+        n = TRANSPORT_TYPE_EMOJI[s.transport_type]
+        n += "*" + s.stop_name + "*\n"
+        n += ", ".join(
+            [get_route(r).route_short_name for r, d in get_routes_by_stop(i)]
+        )
+        options.append((n, f"BusStopMsgBlock appear_here {i}"))
+
+    pt = "Какая остановка Вам нужна?"
+    ppc = f"SearchStopsMsgBlock stop_group {stop_ex_id} {page_num-1}"
+    npc = f"SearchStopsMsgBlock stop_group {stop_ex_id} {page_num+1}"
+    m, k =  make_paginator(
+        options,
+        title=pt,
+        previous_page_cmd=ppc,
+        next_page_cmd=npc,
+        cur_page=page_num,
+    )
+    return {"text": m, "reply_markup": k, "parse_mode": "markdown"}
+
+
+@dp.message_handler()
+async def search_stop_message_handler(message: types.Message):
+    query = message.text
+    await message.reply(**search_stop_by_name_message(query))
+
+
+@dp.callback_query_handler(lambda x: x.data.startswith("SearchStopsMsgBlock"))
+async def search_stop_callback_handler(callback: types.CallbackQuery):
+    params = callback.data.split()
+    assert params[0] == "SearchStopsMsgBlock"
+    if params[1] == "stop_group" or params[1] == "stop_group_newmsg":
+        logger.info("callback: Search stop: stop group block sending")
+        logger.debug(f"stop group stop_id: {params[2]}")
+        if len(params) == 3:
+            msg = stop_group_message(int(params[2]))
+        else:
+            # there is page num
+            pn = int(params[3])
+            stop_ex_id = int(params[2])
+            msg = stop_group_message(stop_ex_id, pn)
+
+        if params[1] == "stop_group":
+            await callback.message.edit_text(**msg)
+        else:  # 'stop_group_newmsg'
+            await callback.message.reply(**msg)
         await callback.answer()
 
 

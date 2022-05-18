@@ -11,3 +11,8 @@ test:
 lint:
 	black .
 	mypy .
+
+run: lint test
+	echo
+	echo ================ RUN ==============
+	python .
