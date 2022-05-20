@@ -8,3 +8,4 @@ bot_conf.py
 htmlcov
 .coverage
 bot.log
+venv

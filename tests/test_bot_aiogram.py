@@ -1,7 +1,7 @@
 import pytest
-from telegram import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 
-from message_blocks import (
+from bot_aiogram import (
     get_forecast_by_stop,
     stop_info,
     make_keyboard,
@@ -10,8 +10,8 @@ from message_blocks import (
 
 def test_get_forecast_by_stop():
     f = get_forecast_by_stop(15495)
-    assert f['success']
-    assert f['result']
+    assert f["success"]
+    assert f["result"]
 
 
 def test_stop_info():
@@ -24,20 +24,28 @@ def test_stop_info():
 def test_make_keyboard():
     # TODO: use pytest parametrising
     buttons_lists = [
-        [('|>', 'play'), ('||', 'pause')],
-        [('A', '1'), ('B', '2'), ('C', '3'), ('D', '4')],
-        [('A', '1'), ('B', '2'), ('C', '3'), ('D', '4'), ('E', '5')],
-        [('A', '1'), ('B', '2'), ('C', '3'),
-         ('D', '4'), ('E', '5'), ('F', '6')
-         ],
-        [('A', '1'), ('B', '2'), ('C', '3'),
-         ('D', '4'), ('E', '5'), ('F', '6'),
-         ('G', '7')
-         ],
-        [('A', '1'), ('B', '2'), ('C', '3'),
-         ('C', '4'), ('B', '2'), ('A', 'dkdk'),
-         ('G', '7')
-         ],
+        [("|>", "play"), ("||", "pause")],
+        [("A", "1"), ("B", "2"), ("C", "3"), ("D", "4")],
+        [("A", "1"), ("B", "2"), ("C", "3"), ("D", "4"), ("E", "5")],
+        [("A", "1"), ("B", "2"), ("C", "3"), ("D", "4"), ("E", "5"), ("F", "6")],
+        [
+            ("A", "1"),
+            ("B", "2"),
+            ("C", "3"),
+            ("D", "4"),
+            ("E", "5"),
+            ("F", "6"),
+            ("G", "7"),
+        ],
+        [
+            ("A", "1"),
+            ("B", "2"),
+            ("C", "3"),
+            ("C", "4"),
+            ("B", "2"),
+            ("A", "dkdk"),
+            ("G", "7"),
+        ],
     ]
     columns_vars = [1, 2, 3, 4, 5, 6, 7]
     for bl in buttons_lists:
@@ -45,7 +53,7 @@ def test_make_keyboard():
             k = make_keyboard(bl, columns=c)
             assert type(k) == InlineKeyboardMarkup
             for btn_row in k.inline_keyboard:
-                print(f'case: {bl} columns={c}; len(btn_row)={len(btn_row)}')
+                print(f"case: {bl} columns={c}; len(btn_row)={len(btn_row)}")
                 assert len(btn_row) <= c
                 assert len(btn_row) > 0
     # empty keys set
