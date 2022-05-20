@@ -1,7 +1,7 @@
 import pytest
-from telegram import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 
-from message_blocks import (
+from bot_aiogram import (
     get_forecast_by_stop,
     stop_info,
     make_keyboard,

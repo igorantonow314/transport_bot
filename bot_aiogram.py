@@ -81,16 +81,11 @@ _Данные о транспорте получены благодаря:_
             ],
             [
                 InlineKeyboardButton(
-                    'Пример ближайших остановок',
+                    "Пример ближайших остановок",
                     callback_data="NearestStops example 59.928048 30.348679",
                 )
             ],
-            [
-                InlineKeyboardButton(
-                "🎲Случайная остановка",
-                callback_data="random_stop"
-                )
-            ]
+            [InlineKeyboardButton("🎲Случайная остановка", callback_data="random_stop")],
         ]
     )
     await message.answer(text, reply_markup=kbd, parse_mode="markdown")
@@ -292,12 +287,9 @@ async def random_stop_command_handler(x: Union[types.Message, types.CallbackQuer
     """
     logger.info("/nevskii command handler")
     m = stop_info_message(get_random_stop_id())
-    m['reply_markup'].inline_keyboard[-1].append(
-        types.InlineKeyboardButton(
-            "🎲Случайная",
-            callback_data="random_stop"
-            )
-        )
+    m["reply_markup"].inline_keyboard[-1].append(
+        types.InlineKeyboardButton("🎲Случайная", callback_data="random_stop")
+    )
     if isinstance(x, types.CallbackQuery):
         await x.message.answer(**m)
         await x.answer()
@@ -326,7 +318,7 @@ def nearest_stops_message(latitude: float, longitude: float, n=10) -> Dict[str, 
             )
         )
     msg, kbd = make_paginator(items, "", "", title=title, always_show_buttons=False)
-    return {"text": msg, 'reply_markup': kbd, 'parse_mode': 'markdown'}
+    return {"text": msg, "reply_markup": kbd, "parse_mode": "markdown"}
 
 
 @dp.message_handler(commands=["test_location"])
@@ -342,7 +334,7 @@ async def nearest_stops_message_handler(message: types.Message):
     await message.reply(**nearest_stops_message(lat, lon))
 
 
-@dp.callback_query_handler(lambda x: x.data.startswith('NearestStops'))
+@dp.callback_query_handler(lambda x: x.data.startswith("NearestStops"))
 async def nearest_stops_callback_handler(callback: types.CallbackQuery):
     params = callback.data.split()
     assert params[0] == "NearestStops"
@@ -358,7 +350,8 @@ async def nearest_stops_callback_handler(callback: types.CallbackQuery):
         await callback.answer()
 
 
-def route_message(route_id: int, direction: int, page_num: Optional[int] = None
+def route_message(
+    route_id: int, direction: int, page_num: Optional[int] = None
 ) -> Dict[str, Any]:
     logger.info(f"form route message")
     if not page_num:
@@ -374,9 +367,7 @@ def route_message(route_id: int, direction: int, page_num: Optional[int] = None
     stops = get_stops_by_route(route_id, direction)
     options = []
     for s in stops:
-        options.append(
-            (get_stop(s).stop_name, "BusStopMsgBlock appear_here " + str(s))
-        )
+        options.append((get_stop(s).stop_name, "BusStopMsgBlock appear_here " + str(s)))
     m, kbd = make_paginator(
         options,
         cur_page=page_num,
@@ -392,14 +383,13 @@ def route_message(route_id: int, direction: int, page_num: Optional[int] = None
         -1,
         InlineKeyboardButton(
             EMOJI["change_direction"],
-            callback_data="RouteMsgBlock appear_here "
-            + f"{route_id} {1-direction} 0",
+            callback_data="RouteMsgBlock appear_here " + f"{route_id} {1-direction} 0",
         ),
     )
     return {"text": msg, "reply_markup": kbd, "parse_mode": "markdown"}
 
 
-@dp.callback_query_handler(lambda x: x.data.startswith('RouteMsgBlock'))
+@dp.callback_query_handler(lambda x: x.data.startswith("RouteMsgBlock"))
 async def route_callback_handler(callback: types.CallbackQuery):
     params = callback.data.split()
     assert params[0] == "RouteMsgBlock"
@@ -426,8 +416,10 @@ def search_stop_by_name_message(query: str) -> Dict[str, Any]:
         fq = fq.replace(c, "\\" + c)
 
     if len(stop_groups) == 0:
-        return {"text": f"**Остановок по запросу** '{fq}' **не найдено** :-(",
-                "parse_mode": "markdown"}
+        return {
+            "text": f"**Остановок по запросу** '{fq}' **не найдено** :-(",
+            "parse_mode": "markdown",
+        }
     title = 'Остановки по запросу "' + fq + '":'
     items = []
     for stop_group_name in stop_groups:
@@ -435,15 +427,11 @@ def search_stop_by_name_message(query: str) -> Dict[str, Any]:
         items.append(
             (stop_group_name, f"SearchStopsMsgBlock stop_group_newmsg {stop_ex_id}")
         )
-    message, kbd = make_paginator(
-        items, " ", " ", title=title, page_size=10
-    )
+    message, kbd = make_paginator(items, " ", " ", title=title, page_size=10)
     return {"text": message, "reply_markup": kbd, "parse_mode": "markdown"}
 
 
-def stop_group_message(
-        stop_ex_id: int, page_num: int = 0
-    ) -> Dict[str, Any]:
+def stop_group_message(stop_ex_id: int, page_num: int = 0) -> Dict[str, Any]:
     stop_group_name = get_stop(stop_ex_id).stop_name.lower()
     stops = get_stops_in_group(stop_group_name)
     options = []
@@ -459,7 +447,7 @@ def stop_group_message(
     pt = "Какая остановка Вам нужна?"
     ppc = f"SearchStopsMsgBlock stop_group {stop_ex_id} {page_num-1}"
     npc = f"SearchStopsMsgBlock stop_group {stop_ex_id} {page_num+1}"
-    m, k =  make_paginator(
+    m, k = make_paginator(
         options,
         title=pt,
         previous_page_cmd=ppc,
@@ -500,7 +488,7 @@ async def search_stop_callback_handler(callback: types.CallbackQuery):
 @dp.callback_query_handler()
 async def callback_handler(callback: types.CallbackQuery) -> None:
     logger.info("callback recieved")
-    
+
     if callback.data.startswith("common"):
         if callback.data == "common delete_me":
             logger.info("callback: common delete_me")
